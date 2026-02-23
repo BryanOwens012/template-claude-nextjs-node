@@ -7,6 +7,7 @@ interface HealthResponse {
   status: string;
   redis: string;
   supabase: string;
+  langfuse?: string;
   message: string;
 }
 
@@ -114,6 +115,15 @@ const ApiStatus = () => {
               {getStatusIcon(health.supabase)} {health.supabase}
             </span>
           </div>
+
+          {health.langfuse && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Langfuse:</span>
+              <span className={`font-medium ${getStatusColor(health.langfuse)}`}>
+                {getStatusIcon(health.langfuse)} {health.langfuse}
+              </span>
+            </div>
+          )}
 
           <p className="text-xs text-gray-500 dark:text-gray-500 mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
             {health.message}

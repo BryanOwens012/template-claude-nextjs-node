@@ -1,5 +1,5 @@
-# Template Next.js + FastAPI .gitignore
-# Comprehensive ignore file for full-stack TypeScript/Python project
+# Template Next.js + Node.js .gitignore
+# Comprehensive ignore file for full-stack TypeScript project
 
 # ============================================
 # SECRETS & CREDENTIALS (CRITICAL)
@@ -37,84 +37,7 @@ postgres_password.txt
 .vercel
 
 # ============================================
-# PYTHON BACKEND (FastAPI)
-# ============================================
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-!apps/frontend/lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Virtual environments
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-.venv/
-.virtualenv/
-pythonenv*/
-
-# PyInstaller
-*.manifest
-*.spec
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
-
-# Flask/FastAPI
-instance/
-.webassets-cache
-*.db
-*.sqlite
-*.sqlite3
-
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb
-
-# pyenv
-.python-version
-
-# Celery
-celerybeat-schedule
-celerybeat.pid
-
-# ============================================
-# NODE.JS / NEXT.JS FRONTEND
+# NODE.JS / API & WEB
 # ============================================
 # Dependencies
 node_modules/
@@ -326,9 +249,6 @@ temp/
 # ============================================
 # Jest
 jest_cache/
-
-# Pytest
-.pytest_cache/
 
 # Test data
 test_data/

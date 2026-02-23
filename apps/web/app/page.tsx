@@ -11,7 +11,7 @@ const Home = () => {
             Hello World!
           </h1>
           <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400">
-            Next.js + FastAPI Template
+            Next.js + Node.js Template
           </p>
         </div>
 
@@ -25,9 +25,9 @@ const Home = () => {
           </div>
 
           <div className="p-6 border border-gray-200 dark:border-gray-800 rounded-lg hover:border-purple-500 transition-colors">
-            <h2 className="text-xl font-semibold mb-2">⚡ FastAPI</h2>
+            <h2 className="text-xl font-semibold mb-2">⚡ Express 5</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              High-performance Python backend with async support and auto-generated docs
+              Node.js backend with Express 5, TypeScript, and Zod validation — deployed on Railway
             </p>
           </div>
 
@@ -58,12 +58,12 @@ const Home = () => {
             About →
           </Link>
           <a
-            href="http://localhost:8000/docs"
+            href="http://localhost:8000/health"
             target="_blank"
             rel="noopener noreferrer"
             className="px-4 py-2 border border-gray-300 dark:border-gray-700 hover:border-gray-400 rounded-lg transition-colors"
           >
-            API Docs
+            API Health
           </a>
           <a
             href="https://nextjs.org/docs"

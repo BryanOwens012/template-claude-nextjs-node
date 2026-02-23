@@ -1,7 +1,7 @@
 /**
  * API Utility
  *
- * Centralized API client for making type-safe requests to the FastAPI backend.
+ * Centralized API client for making type-safe requests to the Express backend.
  * This is an example of a general utility that belongs in lib/.
  */
 
@@ -48,7 +48,7 @@ const apiRequest = async <T>(
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new ApiError(
-        errorData.detail || `API error: ${response.status}`,
+        errorData.message || errorData.detail || `API error: ${response.status}`,
         response.status,
         errorData
       );

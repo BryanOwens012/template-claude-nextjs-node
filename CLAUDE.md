@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is a Next.js + FastAPI template for rapidly spinning up full-stack applications.
+This is a Next.js + Node.js template for rapidly spinning up full-stack applications.
 
 **Status**: Template repository (ready for customization)
 
@@ -12,20 +12,23 @@ This is a Next.js + FastAPI template for rapidly spinning up full-stack applicat
   - React 19
   - TypeScript 5+
   - Tailwind CSS
+  - Radix UI, shadcn/ui
 
 - **Backend**:
-  - FastAPI (Python 3.11+)
-  - Async/await support
-  - Auto-generated OpenAPI docs
-  - Type safety with Pydantic
+  - Express 5 (Node.js 22+)
+  - TypeScript with ESM modules ("type": "module")
+  - Zod for runtime validation and type safety
+  - ioredis for caching
+  - Supabase JS client (service role key)
+  - Langfuse for LLM observability (optional: prompts, tracing, sessions)
 
 - **Deployment**:
   - Frontend: Vercel (auto-configured via vercel.json)
   - Backend: Railway (auto-configured via railway.json)
 
 ### Development Philosophy
-- **Code Quality First**: Always test after changes, fix all TypeScript/Python errors before committing
-- **Modern Syntax**: Use latest ES6+ (TypeScript) and Python 3.11+ features
+- **Code Quality First**: Always test after changes, fix all TypeScript errors before committing
+- **Modern Syntax**: Use latest ES6+ and Node.js 22+ features
 - **Documentation**: Log significant decisions in docs/AGENTS_APPENDLOG.md (append to that file only; don't read anything in it beyond the final/trailing 20 lines)
 - **AI-Assisted**: Leverage AI for rapid development while maintaining high standards
 
@@ -34,7 +37,7 @@ This is a Next.js + FastAPI template for rapidly spinning up full-stack applicat
 ### Code Quality Standards
 - **Always test after every change** - Run the application and verify functionality works
 - **Build before committing** - Ensure builds pass without errors
-- **Fix all type errors** - No ignoring TypeScript or Python type errors
+- **Fix all type errors** - No ignoring TypeScript type errors
 - **Never hallucinate** - Don't assume files, functions, or APIs exist. Read and verify first
 - **Read before writing** - Always use Read tool to check existing code before making changes
 
@@ -51,58 +54,50 @@ This is a Next.js + FastAPI template for rapidly spinning up full-stack applicat
 - Use async/await instead of promise chains
 - Prefer functional array methods: `map`, `filter`, `reduce`
 
-### Python Style
-- Follow **PEP 8** style guide
-- Use **type hints** for all function signatures:
-  ```python
-  async def get_user(user_id: int) -> User:
-      return await db.users.get(user_id)
-  ```
-- Use **Pydantic models** for request/response validation
-- Use **async/await** for I/O operations
-- Use **f-strings** for string formatting: `f"Hello {name}"`
-- Use **list comprehensions** for simple transformations
-- Handle errors explicitly with try/except
+### Express/Node.js Style
+- Use **ESM imports** with explicit `.js` extensions in TypeScript source files (e.g., `import { foo } from "@/lib/bar.js"`)
+  - TypeScript doesn't rewrite extensions; Node.js ESM requires them
+  - Symptom of missing extension: `Error: Cannot find module` at startup
+- Define **Zod schemas** for request/response validation, not types (types are inferred from schemas)
+- Use `getEnvironment()` from `config/environment.ts` for environment variables (never use `process.env` directly)
+- Use `http-errors` package for HTTP errors: `createError(400, "Bad request")`
+- Use **async route handlers** with `next(error)` for error propagation
+- Handle errors in try/catch and pass to `next()` for central error handler
 
-### Python Dependency Management
+### Node.js Dependency Management
 
-**CRITICAL: Always update requirements.txt after installing packages**
+**CRITICAL: Always commit package-lock.json after installing packages**
 
-When you install a new Python package:
+When you install a new package:
 1. Navigate to the service directory: `cd apps/api`
-2. Install the package: `pip install <package-name>`
-3. **Immediately** update requirements.txt: `pip freeze > requirements.txt`
-4. Test that installation from requirements.txt works: `pip install -r requirements.txt`
+2. Install the package: `npm install <package-name>`
+3. Commit the updated `package.json` and `package-lock.json`
+4. For CI/CD, use `npm ci` (requires committed lockfile) instead of `npm install`
 
 **For this monorepo:**
-- Each service under `apps/` has its own `requirements.txt`
-- `apps/api/requirements.txt` - Python dependencies for the API service
+- Each service under `apps/` has its own `package.json` and `package-lock.json`
+- `apps/api/package.json` - Node.js dependencies for the API service
 - Each service is independently deployable with its own dependencies
-- If you add a new service, create its own requirements.txt
+- If you add a new service, create its own `package.json`
 
 **Example workflow:**
 ```bash
-# Activate venv (from root of monorepo)
-source venv/bin/activate  # or: venv\Scripts\activate on Windows
-
 # Navigate to service directory
 cd apps/api
 
 # Install new package
-pip install <new-package>
+npm install <new-package>
 
-# Update service requirements (from within apps/api/)
-pip freeze > requirements.txt
-
-# Verify installation works
-pip install -r requirements.txt
+# Commit package.json and package-lock.json
+git add package.json package-lock.json
+git commit -m "Add <new-package> dependency"
 ```
 
 **DO NOT:**
-- ❌ Install packages without updating requirements.txt
+- ❌ Install packages without committing package-lock.json
 - ❌ Use outdated or conflicting versions
-- ❌ Commit code that requires packages not in requirements.txt
-- ❌ Forget to run `pip freeze` from within the service directory
+- ❌ Commit code that requires packages not in package.json
+- ❌ Gitignore package-lock.json (it must be committed)
 
 ### React Best Practices
 - Use **functional components** with hooks only
@@ -112,13 +107,6 @@ pip install -r requirements.txt
 - Clean up effects with return functions
 - Use proper dependency arrays for hooks
 
-### FastAPI Best Practices
-- Use **dependency injection** for shared resources
-- Define **Pydantic models** for all request/response bodies
-- Use **async route handlers** for I/O operations
-- Include proper **status codes** in responses
-- Add **comprehensive docstrings** for auto-generated docs
-- Handle errors with **HTTPException**
 
 ### Component Development
 - Place reusable UI components in appropriate directories
@@ -138,7 +126,7 @@ pip install -r requirements.txt
 
 **Frontend:**
 ```
-apps/frontend/
+apps/web/
 ├── app/                  # Next.js app router
 │   ├── page.tsx         # Home page
 │   ├── layout.tsx       # Root layout
@@ -151,24 +139,39 @@ apps/frontend/
 **Backend:**
 ```
 apps/api/
-├── main.py              # FastAPI app entry
-├── supabase_utils.py    # Supabase helper functions
-├── requirements.txt     # Python dependencies for API service
+├── package.json         # Node.js dependencies and scripts
+├── tsconfig.json        # TypeScript configuration (rootDir: ".")
+├── src/
+│   ├── index.ts         # Express app + route mounting + server start
+│   ├── config/
+│   │   └── environment.ts        # Zod env validation, lazy singleton, getCorsOrigins()
+│   ├── middleware/
+│   │   ├── cors.ts              # CORS configuration with localhost passthrough
+│   │   └── errorHandler.ts      # Centralized error handling (400s, ZodError, 500)
+│   ├── routes/
+│   │   ├── index.ts             # GET / — root API info handler
+│   │   ├── health.ts            # GET / (mounted at /health)
+│   │   ├── redis.ts             # GET /test, POST/GET/DELETE /cache/:key
+│   │   └── supabase.ts          # GET / (mounted at /supabase/test)
+│   ├── services/
+│   │   ├── redis.ts             # initRedis/closeRedis/getRedisClient/isRedisAvailable
+│   │   └── supabase.ts          # initSupabase/getSupabaseClient/isSupabaseAvailable
+│   └── types/
+│       └── index.ts             # Zod schemas + z.infer<> types
+├── supabase/
+│   ├── types.ts                 # Regenerate with supabase CLI
+│   └── migrations/
+│       └── .gitkeep
 ├── railway.json         # Railway deployment config
 ├── .railwayignore       # Railway ignore patterns
-├── nixpacks.toml        # Build configuration
-├── .env.example         # Environment variable template
-├── routers/             # API route handlers (add as needed)
-├── models/              # Pydantic models (add as needed)
-├── services/            # Business logic (add as needed)
-└── utils/               # Helper functions (add as needed)
+├── nixpacks.toml        # Build configuration (Node.js 22)
+└── .env.example         # Environment variable template
 ```
 
 **Root:**
 ```
-venv/                   # Python virtual environment (gitignored)
-vercel.json            # Vercel deployment config for frontend
-.vercelignore          # Vercel ignore patterns
+vercel.json            # Vercel deployment config for web app (simplified)
+.vercelignore          # Vercel ignore patterns (build only apps/web/)
 ```
 
 ### Testing Workflow
@@ -219,12 +222,12 @@ vercel.json            # Vercel deployment config for frontend
 - ❌ Don't forget cleanup in useEffect hooks
 - ❌ Don't mutate state directly (use immutable updates)
 
-### Python
-- ❌ Don't use blocking I/O in async functions
-- ❌ Don't forget type hints
-- ❌ Don't ignore Pydantic validation errors
-- ❌ Don't use bare except clauses
-- ❌ Don't forget to close database connections/sessions
+### Node.js/Express
+- ❌ Don't forget `.js` extensions in ESM imports from TypeScript files
+- ❌ Don't use `process.env` directly; use `getEnvironment()` instead
+- ❌ Don't mix Zod validation with TypeScript-only types
+- ❌ Don't ignore Zod validation errors
+- ❌ Don't forget to close database/Redis connections on shutdown
 
 ## Decision Logging & Meta-Documentation
 
@@ -262,24 +265,24 @@ After appending to AGENTS_APPENDLOG.md:
 
 ## Deployment
 
-### Vercel (Frontend)
-The `vercel.json` at the root is configured for:
-- Building from `apps/frontend`
-- Deploying on pushes to `main` and `develop`
-- Ignoring deployments when only backend files change
+### Vercel (Web App)
+The `vercel.json` at the root is simplified:
+- Framework: Next.js (auto-detected)
+- Deploys on pushes to `main` and `develop`
 
 **Setup:**
 1. Connect repository to Vercel
 2. Vercel auto-detects `vercel.json`
-3. Set environment variables in dashboard
-4. Deploy
+3. **After deploying, manually set root directory to `apps/web` in Vercel dashboard** (Settings → General → Root Directory)
+4. Set environment variables (`NEXT_PUBLIC_API_URL`, etc.)
+5. Deploy
 
-### Railway (Backend)
+### Railway (Backend API)
 Each service under `apps/` can be deployed independently with its own configuration files:
 - `railway.json` - Deployment configuration
 - `.railwayignore` - Files to exclude from deployment
-- `nixpacks.toml` - Build configuration (Python version, dependencies)
-- `requirements.txt` - Python dependencies for this service
+- `nixpacks.toml` - Build configuration (Node.js version, build commands)
+- `package.json` and `package-lock.json` - Node.js dependencies for this service
 
 **Setup for API service:**
 1. Create new Railway service
@@ -287,7 +290,7 @@ Each service under `apps/` can be deployed independently with its own configurat
 3. **Set root directory to `apps/api`** in Railway service settings
 4. Railway will detect `railway.json` and `nixpacks.toml` in the service directory
 5. Add Redis plugin (Railway will set `REDIS_URL` automatically)
-6. Set environment variables (Supabase, CORS, etc.)
+6. Set environment variables (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CORS_ORIGINS)
 7. Deploy
 
 **Why per-service configuration:**
@@ -303,8 +306,8 @@ To add additional backend services:
 2. Add service-specific configuration files:
    - `railway.json` - Deployment config
    - `.railwayignore` - Exclude patterns
-   - `nixpacks.toml` - Build config
-   - `requirements.txt` - Dependencies
+   - `nixpacks.toml` - Build config (Node.js 22+)
+   - `package.json` and `package-lock.json` - Dependencies
    - `.env.example` - Environment template
 3. Create new Railway service in your project
 4. Connect same repository
@@ -314,17 +317,20 @@ To add additional backend services:
 **Example multi-service structure:**
 ```
 apps/
-├── api/              # REST API
-│   ├── railway.json
-│   ├── requirements.txt
+├── web/              # Next.js frontend
+│   ├── package.json
 │   └── ...
-├── worker/           # Background jobs
+├── api/              # Express REST API
 │   ├── railway.json
-│   ├── requirements.txt
+│   ├── package.json
 │   └── ...
-└── websocket/        # WebSocket server
+├── worker/           # Background jobs (Node.js + Bull)
+│   ├── railway.json
+│   ├── package.json
+│   └── ...
+└── websocket/        # WebSocket server (Node.js)
     ├── railway.json
-    ├── requirements.txt
+    ├── package.json
     └── ...
 ```
 
@@ -332,7 +338,7 @@ apps/
 
 ### Environment Variables
 
-**Frontend** (`apps/frontend/.env`):
+**Frontend** (`apps/web/.env.local`):
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:8000
 # Public vars must be prefixed with NEXT_PUBLIC_
@@ -340,9 +346,12 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 **Backend** (`apps/api/.env`):
 ```bash
-DATABASE_URL=postgresql://user:password@localhost:5432/dbname
-API_SECRET_KEY=your_secret_here
-# No special prefix needed
+PORT=8000
+NODE_ENV=development
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+REDIS_URL=redis://localhost:6379
+CORS_ORIGINS=http://localhost:3000,http://localhost:3001
 ```
 
 ### API Integration Pattern
@@ -358,76 +367,192 @@ const result = await response.json();
 ```
 
 **Backend API route:**
-```python
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+```typescript
+import { Router } from "express";
+import { z } from "zod";
 
-router = APIRouter()
+const router = Router();
 
-class UserRequest(BaseModel):
-    name: str
-    email: str
+const UserRequestSchema = z.object({
+  name: z.string(),
+  email: z.string().email(),
+});
 
-class UserResponse(BaseModel):
-    id: int
-    name: str
-    email: str
+const UserResponseSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  email: z.string().email(),
+});
 
-@router.post("/users", response_model=UserResponse)
-async def create_user(user: UserRequest):
-    # Business logic here
-    return UserResponse(id=1, name=user.name, email=user.email)
+router.post("/users", async (req, res, next) => {
+  try {
+    const user = UserRequestSchema.parse(req.body);
+    const result = { id: 1, ...user };
+    const validated = UserResponseSchema.parse(result);
+    res.json(validated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default router;
 ```
 
 ### CORS Configuration
 
-If frontend and backend are on different domains:
-
-```python
-from fastapi.middleware.cors import CORSMiddleware
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://yourapp.vercel.app"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-```
+CORS is configured in `src/middleware/cors.ts`. The middleware:
+- Automatically allows localhost (http://localhost:3000, http://localhost:3001, etc.)
+- Reads allowed origins from `CORS_ORIGINS` environment variable (comma-separated)
+- Supports wildcard `"*"` for development
+- Logs rejected origins for debugging
 
 ### Database Integration
 
 **Common patterns:**
-- Use SQLAlchemy (async) or Prisma for ORMs
-- Use Alembic for migrations
-- Store connection string in environment variable
-- Use connection pooling for production
+- Use Prisma for ORM (has excellent TypeScript support)
+- Run migrations via `npx prisma migrate`
+- Store connection string in `DATABASE_URL` environment variable
+- Use connection pooling for production (Prisma does this automatically)
 
-### Streaming Responses
+### Supabase Types
 
-**Backend (FastAPI):**
-```python
-from fastapi.responses import StreamingResponse
-
-async def generate_stream():
-    for item in items:
-        yield f"data: {json.dumps(item)}\n\n"
-
-@router.get("/stream")
-async def stream_endpoint():
-    return StreamingResponse(generate_stream(), media_type="text/event-stream")
+Generate TypeScript types from your Supabase schema:
+```bash
+npx supabase gen types typescript --project-id YOUR_PROJECT_ID > apps/api/supabase/types.ts
 ```
 
-**Frontend (Next.js):**
+After regenerating, update pgvector fields manually (e.g., embedding fields to `number[] | null`).
+
+The generated `Database` type is used in `src/services/supabase.ts` for full type safety:
 ```typescript
-const response = await fetch('/api/stream');
-const reader = response.body?.getReader();
-while (true) {
-  const { done, value } = await reader.read();
-  if (done) break;
-  // Process stream chunk
-}
+import type { Database } from "@/../../supabase/types.js";
+const supabaseClient: SupabaseClient<Database> = ...
 ```
+
+### Langfuse Integration (Optional)
+
+[Langfuse](https://langfuse.com/) provides observability for LLM applications: prompt management, tracing, and session tracking.
+
+**Setup:**
+1. Get keys from [cloud.langfuse.com/project/_/settings](https://cloud.langfuse.com/project/_/settings)
+2. Set in `.env`:
+   ```bash
+   LANGFUSE_PUBLIC_KEY=your-key
+   LANGFUSE_SECRET_KEY=your-key
+   LANGFUSE_BASE_URL=https://cloud.langfuse.com  # optional
+   ```
+3. Langfuse is automatically initialized on server startup
+4. Health check at `/health` includes Langfuse status
+
+**Features:**
+- `src/services/langfuse.ts` — Manages prompts and gracefully degrades if keys are missing
+- `src/services/telemetry.ts` — OpenTelemetry SDK with LangfuseSpanProcessor (auto-captures AI SDK spans)
+- `GET /langfuse/test` — Verify Langfuse connectivity
+- `GET /langfuse/prompts/:name?context=X&query=Y` — Fetch and render prompts with variable substitution (`{{variable}}`)
+- `POST /langfuse/trace-example` — Runnable scaffold: Vercel AI SDK + Claude Haiku + tracing + sessions
+
+**AI SDK + Langfuse tracing pattern:**
+
+The template uses [Vercel AI SDK](https://sdk.vercel.ai/) (`ai` + `@ai-sdk/anthropic`) for LLM calls. Both `generateText` and `streamText` are current, non-deprecated APIs:
+- `generateText` — non-interactive/agent use; waits for full completion before returning
+- `streamText` — interactive/chat use; streams tokens to the client in real time
+
+Tracing flows through OpenTelemetry automatically via `experimental_telemetry` — no manual span creation needed for token counts or model metadata.
+
+**Full pattern with tool call (from `src/routes/langfuse.ts`):**
+
+```typescript
+import { generateText, tool, stepCountIs } from "ai";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { z } from "zod";
+import { startActiveObservation, propagateAttributes } from "@langfuse/tracing";
+
+const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
+
+// Define a tool — replace execute() with a real API call
+const getCurrentWeather = tool({
+  description: "Get the current weather for a city.",
+  inputSchema: z.object({
+    city: z.string().describe("The city to get weather for"),
+  }),
+  execute: async ({ city }) => ({ city, temperature: 68, condition: "Sunny" }),
+});
+
+// sessionId from request body — groups all spans into one Langfuse session
+const traceAttrs = sessionId ? { sessionId: String(sessionId) } : {};
+
+await startActiveObservation("my-llm-call", async (span) => {
+  span.update({ input: { prompt } });            // annotate the Langfuse observation
+
+  await propagateAttributes(traceAttrs, async () => {
+    const result = await generateText({
+      model: anthropic("claude-haiku-4-5"),
+      prompt,
+      tools: { getCurrentWeather },
+      // stopWhen enables multi-step: model calls tool → gets result → generates final text
+      stopWhen: stepCountIs(3),
+      experimental_telemetry: {
+        isEnabled: true,
+        functionId: "my-llm-call",    // label shown in Langfuse
+        metadata: { route: "/my-route" },
+      },
+    });
+
+    generatedText = result.text;
+    // result.usage: { inputTokens, outputTokens, totalTokens }
+    // result.steps[].toolResults: [{ toolName, input, output }]
+  });
+
+  span.update({ output: { text: generatedText } });
+});
+```
+
+**Key concepts:**
+
+- `tool({ description, inputSchema, execute })` — AI SDK v6 tool definition. Use `inputSchema` (Zod), NOT `parameters`. The `execute` function receives validated input and returns a result the model can use.
+- `stopWhen: stepCountIs(N)` — enables multi-step agentic loops: model calls tool → SDK executes it → result fed back → model continues. Caps at N steps.
+- `startActiveObservation(name, fn)` — wraps the async function in a Langfuse observation. Call `span.update({ input, output })` to annotate. Ends automatically when `fn` resolves.
+- `propagateAttributes({ sessionId })` — binds a session ID to all child spans via Node.js async context. Groups multiple requests into one session in the Langfuse UI.
+- `experimental_telemetry` — enables AI SDK's built-in OTel instrumentation. `LangfuseSpanProcessor` in `telemetry.ts` captures these spans automatically.
+
+**Switching models:**
+```typescript
+// Claude (via @ai-sdk/anthropic — already installed)
+anthropic("claude-haiku-4-5")    // fastest, cheapest
+anthropic("claude-sonnet-4-6")   // balanced
+
+// OpenAI (install @ai-sdk/openai first)
+import { createOpenAI } from "@ai-sdk/openai";
+const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY });
+openai("gpt-4o-mini")
+```
+
+**Streaming (for real-time chat):**
+```typescript
+import { streamText } from "ai";
+
+const result = streamText({
+  model: anthropic("claude-haiku-4-5"),
+  prompt,
+  tools: { getCurrentWeather },
+  stopWhen: stepCountIs(3),
+  experimental_telemetry: { isEnabled: true, functionId: "my-stream" },
+});
+
+// Pipe to Express response (SSE):
+result.pipeTextStreamToResponse(res);
+```
+
+**Test the scaffold:**
+```bash
+# Requires ANTHROPIC_API_KEY in apps/api/.env
+curl -X POST http://localhost:8000/langfuse/trace-example \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "What'\''s the weather in Paris?", "sessionId": "my-session-123"}'
+# Returns: { text, usage, toolCalls: [{ tool, input, output }], langfuseTraced }
+```
+
+All Langfuse features are **optional** and gracefully degrade if not configured.
 
 ## Verification Checklist
 
@@ -458,8 +583,16 @@ Before considering any task complete:
 ### Deployment Readiness
 - [ ] No secrets or credentials in code
 - [ ] Environment variables properly configured
-- [ ] Dependencies added to requirements.txt (if Python)
-- [ ] Package.json updated (if Node.js)
+- [ ] `package.json` and `package-lock.json` updated (if Node.js)
+
+## Agent Session Logging
+
+This project uses [entire.io](https://entire.io/) to log coding agent (Claude Code, etc.) prompts and responses. The `.entire/` directory at the repo root stores the configuration:
+
+- **`.entire/settings.json`** — committed; controls logging strategy (`"manual-commit"`) and telemetry (`false`)
+- **`.entire/logs/`**, **`.entire/tmp/`**, **`.entire/metadata/`** — gitignored internally by `.entire/.gitignore`
+
+You do not need to interact with this directory. It runs passively in the background during Claude Code sessions.
 
 ## Agent Collaboration
 

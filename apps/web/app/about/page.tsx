@@ -4,7 +4,7 @@ import Link from "next/link";
 // Override metadata for this specific page
 export const metadata: Metadata = {
   title: "About",
-  description: "Learn more about this Next.js + FastAPI template",
+  description: "Learn more about this Next.js + Node.js template",
 };
 
 const AboutPage = () => {
@@ -42,7 +42,7 @@ const AboutPage = () => {
             </h2>
             <p className="text-gray-600 dark:text-gray-400">
               This page overrides the default metadata with its own title and description.
-              Check the page source or browser tab to see &quot;About | Next.js + FastAPI&quot;
+              Check the page source or browser tab to see &quot;About | Next.js + Node.js&quot;
             </p>
           </div>
 
@@ -51,8 +51,8 @@ const AboutPage = () => {
               🔧 Tech Stack
             </h2>
             <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-              <li>• <strong>Frontend:</strong> Next.js 15, React 19, TypeScript, Tailwind CSS</li>
-              <li>• <strong>Backend:</strong> FastAPI, Python 3.11+, Async/Await</li>
+              <li>• <strong>Frontend:</strong> Next.js 15, React 19, TypeScript, Tailwind CSS, Radix UI, shadcn/ui</li>
+              <li>• <strong>Backend:</strong> Express 5, Node.js 22+, TypeScript</li>
               <li>• <strong>Database:</strong> Supabase (PostgreSQL)</li>
               <li>• <strong>Caching:</strong> Redis</li>
               <li>• <strong>Deployment:</strong> Vercel + Railway</li>
@@ -69,12 +69,12 @@ const AboutPage = () => {
             ← Back to Home
           </Link>
           <a
-            href="http://localhost:8000/docs"
+            href="http://localhost:8000/health"
             target="_blank"
             rel="noopener noreferrer"
             className="px-6 py-3 border border-gray-300 dark:border-gray-700 hover:border-gray-400 rounded-lg transition-colors"
           >
-            API Docs →
+            API Health →
           </a>
         </div>
       </main>

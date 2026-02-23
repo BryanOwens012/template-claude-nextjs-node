@@ -67,4 +67,50 @@ When starting a new project with this template:
 
 ---
 
+## 2026-02-23 16:45 PT - Backend Conversion: FastAPI → Express 5 + TypeScript
+**Type:** Decision | Implementation
+**Change:** Converted backend from Python FastAPI to Node.js Express 5 with TypeScript, unified entire stack to TypeScript
+**Context:** Template alignment with boola-bot monorepo structure; standardizing on unified TypeScript across frontend and backend
+**Rationale:**
+- **Unified Stack**: Single language (TypeScript) for entire application reduces context switching and enables code sharing (types, utilities)
+- **Developer Velocity**: Consistent tooling, build process, and deployment pattern across frontend and backend
+- **Type Safety**: Zod runtime validation + TypeScript compile-time types provide better guarantees than Python Pydantic
+- **Modern JavaScript**: ES2022+ features, native async/await, modules-first approach
+- **boola-bot Alignment**: Exact architectural parity with proven production pattern
+**Alternatives Considered:**
+- Keep FastAPI: Rejected because sacrifices unified stack benefits, adds Python maintenance overhead
+- Use Deno: Rejected because less ecosystem maturity and Railway support than Node.js
+- tRPC/GraphQL instead of REST: Rejected because REST remains simpler for this template
+**Impact:**
+- Architecture: `/src/config`, `/src/middleware`, `/src/routes`, `/src/services`, `/src/types` structure
+- Build: TypeScript → JavaScript via `tsc && tsc-alias` (path alias rewriting required for ESM)
+- Startup: Lazy singleton `getEnvironment()` validates all vars at import time; fails fast on misconfiguration
+- Runtime: Express 5 + ioredis + Supabase JS client
+- Deployment: Unchanged (Vercel for web, Railway for api); nixpacks now uses nodejs_22 instead of Python 3.11
+- Documentation: CLAUDE.md, README.md updated; Vercel manual root directory setup required post-deployment
+**Time Spent:** ~2 hours (planning, implementation, testing, documentation)
+**Learnings:**
+1. **ESM .js Extension Requirement**: TypeScript with `"module": "esnext"` does not rewrite import extensions. Must write `import { foo } from "@/lib/bar.js"` even in `.ts` files. Node.js ESM requires explicit extensions at runtime. Missing extensions cause "Cannot find module" errors.
+2. **tsc-alias is Essential**: `tsc` leaves `@/*` path aliases as-is; `node` fails at startup. Build script must be `tsc && tsc-alias`.
+3. **Railway IPv6 Dual-Stack**: ioredis needs `family: 0` (AF_UNSPEC) to support Railway's internal Redis hostname resolution (IPv6 preferred, falls back to IPv4).
+4. **getEnvironment() Lazy Singleton Pattern**: Centralizes env validation, called at module import time (not async). Validates everything on first call; caches result. `process.exit(1)` on validation failure prevents startup.
+5. **Zod vs Pydantic**: Zod is runtime-first; types are inferred from schemas via `z.infer<typeof schema>`. Pydantic works opposite (types first, validation second). Zod better for APIs where request/response shapes are primary concern.
+6. **package-lock.json Requirement**: Railway uses `npm ci` during build (requires committed lockfile). Contrast with Python which allows `pip install` without lockfile. Must commit `package-lock.json`.
+7. **Supabase Health Check (42P01)**: For fresh templates with no tables, querying a non-existent table returns PostgreSQL error 42P01 (table not found). This still confirms connectivity; "success" in health check logic.
+8. **vercel.json Simplification Trade-off**: Removing `buildCommand` and `outputDirectory` overrides forces manual dashboard setup (root directory → apps/web). Benefit: simpler config, clearer Vercel auto-detection. Cost: one-time manual step.
+9. **Monorepo Root Relative Imports**: From `apps/api/src/services/supabase.ts`, path `@/../../supabase/types.js` resolves correctly because `tsconfig.json` has `rootDir: "."` (not `"./src"`), allowing includes outside `src/`.
+10. **Error Response Shape Differences**: FastAPI returns `{"detail": "..."}` on validation errors. Express http-errors returns `{"error": "...", "status": ...}`. Frontend `lib/api.ts` must check both fields: `errorData.message || errorData.detail || ...`.
+
+**Files Modified:**
+- Deleted: `main.py`, `supabase_utils.py`, `requirements.txt`, Python deployment configs
+- Created: Full Express structure (src/config, src/middleware, src/routes, src/services, src/types)
+- Renamed: `apps/frontend/` → `apps/web/`
+- Updated: CLAUDE.md (Node.js sections, Express style guide, removed Python sections), README.md (tech stack, quickstart), web app (page.tsx, about/page.tsx, metadata.ts, lib/api.ts)
+
+**Next Steps (for projects using this template):**
+1. Fill in Supabase credentials in `apps/api/.env`
+2. Regenerate `apps/api/supabase/types.ts` with actual schema: `npx supabase gen types typescript --project-id YOUR_ID > supabase/types.ts`
+3. Set `NEXT_PUBLIC_API_URL` in `apps/web/.env.local`
+4. After Vercel deployment, manually set root directory to `apps/web` in dashboard
+
 <!-- New log entries go below this line -->

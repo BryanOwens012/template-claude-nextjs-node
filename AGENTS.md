@@ -17,7 +17,7 @@ While this project was initially developed with Claude Code, the guidelines in `
 - Project overview and tech stack
 - Code quality standards and style guidelines
 - Testing and deployment workflows
-- Python dependency management
+- Node.js dependency management
 - Agent collaboration patterns
 - Verification checklists
 - Template customization instructions

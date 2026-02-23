@@ -1,13 +1,15 @@
-# Next.js + FastAPI Template
+# Next.js + Node.js Template
 
-A production-ready template for rapidly spinning up full-stack applications with Next.js frontend and FastAPI backend services.
+A production-ready template for rapidly spinning up full-stack applications with Next.js frontend and Express/Node.js backend services.
 
 ## Features
 
-- **Modern Frontend**: Next.js 15+ with React 19, TypeScript, and Tailwind CSS
-- **Robust Backend**: FastAPI with Python 3.11+, async support, and type safety
+- **Modern Frontend**: Next.js 15+ with React 19, TypeScript, Tailwind CSS, Radix UI, shadcn/ui
+- **Robust Backend**: Express 5 with Node.js 22+, TypeScript, Zod validation, and type safety
 - **Supabase Integration**: PostgreSQL database with built-in auth, realtime, and storage
 - **Redis Integration**: Built-in caching with Railway-optimized connection settings
+- **Vercel AI SDK**: First-class LLM integration with Claude Haiku, streaming, and tool calls
+- **Langfuse Integration**: Optional LLM observability for prompts, tracing, and sessions
 - **Deployment Ready**: Pre-configured for Vercel (frontend) and Railway (backend + Redis)
 - **Monorepo Structure**: Organized multi-service architecture
 - **Best Practices**: Includes CLAUDE.md for comprehensive AI-assisted development guidelines
@@ -20,14 +22,18 @@ A production-ready template for rapidly spinning up full-stack applications with
 - **UI Library**: React 19
 - **Language**: TypeScript 5+
 - **Styling**: Tailwind CSS
+- **UI Components**: Radix UI, shadcn/ui
 - **Deployment**: Vercel
 
 ### Backend
-- **Framework**: FastAPI
-- **Language**: Python 3.11+
+- **Framework**: Express 5
+- **Runtime**: Node.js 22+
+- **Language**: TypeScript with ESM modules
+- **Validation**: Zod (schemas + inferred types)
 - **Database**: Supabase (PostgreSQL with auth, realtime, storage)
-- **Caching**: Redis (async with Railway-optimized settings)
-- **API Documentation**: Auto-generated OpenAPI/Swagger docs
+- **Caching**: Redis (ioredis with Railway-optimized settings)
+- **AI**: Vercel AI SDK (`ai` + `@ai-sdk/anthropic`) — `generateText`, `streamText`, tool calls
+- **Observability**: Langfuse (optional: prompt management, tracing, sessions)
 - **Deployment**: Railway (API + Redis plugin)
 
 ## Project Structure
@@ -35,29 +41,40 @@ A production-ready template for rapidly spinning up full-stack applications with
 ```
 .
 ├── apps/
-│   ├── frontend/              # Next.js application
-│   │   ├── app/              # Next.js app router
-│   │   ├── components/       # React components
-│   │   ├── lib/              # Utilities and helpers
+│   ├── web/                  # Next.js application
+│   │   ├── app/             # Next.js app router
+│   │   ├── components/      # React components (Radix UI, shadcn/ui)
+│   │   ├── lib/             # Utilities and helpers
 │   │   ├── package.json
 │   │   └── .env.example
-│   └── api/                   # FastAPI service
-│       ├── main.py           # FastAPI app entry point
-│       ├── routers/          # API route handlers
-│       ├── models/           # Data models
-│       ├── supabase_utils.py # Supabase helper functions
-│       ├── requirements.txt  # Python dependencies
-│       ├── railway.json      # Railway deployment config
-│       ├── .railwayignore    # Railway ignore patterns
-│       ├── nixpacks.toml     # Nixpacks build config
+│   └── api/                  # Express service
+│       ├── src/
+│       │   ├── index.ts              # Express app + server
+│       │   ├── config/
+│       │   │   └── environment.ts    # Zod env validation
+│       │   ├── middleware/
+│       │   │   ├── cors.ts           # CORS configuration
+│       │   │   └── errorHandler.ts   # Error handling
+│       │   ├── routes/               # API route handlers
+│       │   ├── services/             # Redis, Supabase clients
+│       │   └── types/                # Zod schemas & types
+│       ├── supabase/
+│       │   ├── types.ts              # Generated Supabase types
+│       │   └── migrations/
+│       ├── package.json
+│       ├── tsconfig.json
+│       ├── railway.json              # Railway deployment config
+│       ├── .railwayignore            # Railway ignore patterns
+│       ├── nixpacks.toml             # Nixpacks build config
 │       └── .env.example
 ├── docs/
 │   └── AGENTS_APPENDLOG.md   # Decision log (append-only)
 ├── scripts/
-│   └── test_services.py      # Service connectivity test script
-├── venv/                      # Python virtual environment (gitignored)
-├── AGENTS.md                  # AI agent entry point (redirects to CLAUDE.md)
-├── CLAUDE.md                  # Comprehensive development guidelines and best practices
+│   └── test_services.sh      # Service connectivity test script
+├── .entire/                  # entire.io agent session logger (see below)
+│   └── settings.json         # Logging config (committed; logs gitignored internally)
+├── AGENTS.md                 # AI agent entry point (redirects to CLAUDE.md)
+├── CLAUDE.md                 # Comprehensive development guidelines and best practices
 ├── vercel.json               # Vercel deployment config
 ├── .vercelignore             # Vercel ignore patterns
 ├── .gitignore                # Comprehensive ignore patterns
@@ -68,10 +85,8 @@ A production-ready template for rapidly spinning up full-stack applications with
 
 ### Prerequisites
 
-- Node.js 20.17.0 or higher
-- Python 3.11 or higher
+- Node.js 22.0.0 or higher
 - npm or yarn
-- pip
 - [Supabase account](https://supabase.com) (free tier available)
 
 ### Supabase Setup
@@ -92,10 +107,10 @@ A production-ready template for rapidly spinning up full-stack applications with
 ### Frontend Setup
 
 ```bash
-cd apps/frontend
+cd apps/web
 npm install
-cp .env.example .env
-# Add your environment variables to .env
+cp .env.example .env.local
+# Add NEXT_PUBLIC_API_URL=http://localhost:8000 to .env.local
 npm run dev
 ```
 
@@ -103,36 +118,19 @@ Visit [http://localhost:3000](http://localhost:3000)
 
 ### Backend Setup
 
-**Option 1: Root-level venv (Recommended for monorepo development)**
-```bash
-# From root of monorepo
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r apps/api/requirements.txt
-
-# Set up environment
-cp apps/api/.env.example apps/api/.env
-# Add your environment variables to apps/api/.env
-
-# Run API
-cd apps/api
-uvicorn main:app --reload
-```
-
-**Option 2: API-level venv (Isolated to API service)**
 ```bash
 cd apps/api
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+npm install
 cp .env.example .env
-# Add your environment variables to .env
-uvicorn main:app --reload
+# Add your Supabase credentials and Redis URL to .env
+npm run dev
 ```
 
-API documentation available at [http://localhost:8000/docs](http://localhost:8000/docs)
+API server running at [http://localhost:8000](http://localhost:8000)
 
-**Note:** After installing any new Python package, always run `pip freeze > requirements.txt` from within `apps/api/` to keep dependencies up to date.
+**Test endpoint:** [http://localhost:8000/health](http://localhost:8000/health)
+
+**Note:** After installing any new npm package, commit both `package.json` and `package-lock.json`
 
 ### Redis Setup (Optional for Local Development)
 
@@ -162,7 +160,7 @@ Once the API is running, test connectivity using the included test script:
 
 ```bash
 # Run the comprehensive test script
-python scripts/test_services.py
+bash scripts/test_services.sh
 
 # Test against a different API URL
 python scripts/test_services.py --api-url https://your-api.railway.app
@@ -195,10 +193,9 @@ curl http://localhost:8000/health
 3. Set environment variables in Vercel dashboard
 4. Deploy
 
-The `vercel.json` is configured to:
-- Build the frontend from `apps/frontend`
+The `vercel.json` is simplified — Vercel auto-detects Next.js:
 - Deploy on pushes to `main` and `develop` branches
-- Ignore deployments when only backend files change
+- After deploying, set root directory to `apps/web` in the Vercel dashboard (Settings → General → Root Directory)
 
 ### Backend (Railway)
 
@@ -223,8 +220,8 @@ Each service under `apps/` can be deployed independently to Railway.
 **Per-service configuration files in `apps/api/`:**
 - `railway.json` - Deployment configuration
 - `.railwayignore` - Excludes development files and caches
-- `nixpacks.toml` - Build configuration (Python version, dependencies)
-- `requirements.txt` - Python dependencies for this service
+- `nixpacks.toml` - Build configuration (Node.js 22, npm ci + npm run build)
+- `package.json` / `package-lock.json` - Node.js dependencies for this service
 
 The `railway.json` is configured for:
 - Automatic builds with NIXPACKS
@@ -245,8 +242,8 @@ To add additional backend services:
 2. Add service-specific configuration files:
    - `railway.json` - Deployment config for this service
    - `.railwayignore` - Files to exclude from deployment
-   - `nixpacks.toml` - Build configuration
-   - `requirements.txt` - Python dependencies
+   - `nixpacks.toml` - Build configuration (Node.js 22)
+   - `package.json` / `package-lock.json` - Node.js dependencies
    - `.env.example` - Environment variable template
 3. Create a new Railway service in your project
 4. Connect the same repository
@@ -256,17 +253,20 @@ To add additional backend services:
 **Example structure for multiple services:**
 ```
 apps/
-├── api/              # REST API service
+├── web/              # Next.js frontend
+│   ├── package.json
+│   └── ...
+├── api/              # Express REST API service
 │   ├── railway.json
-│   ├── requirements.txt
+│   ├── package.json
 │   └── ...
 ├── worker/           # Background worker service
 │   ├── railway.json
-│   ├── requirements.txt
+│   ├── package.json
 │   └── ...
 └── websocket/        # WebSocket service
     ├── railway.json
-    ├── requirements.txt
+    ├── package.json
     └── ...
 ```
 
@@ -274,7 +274,7 @@ Each service is independently deployable with its own configuration and dependen
 
 ## Environment Variables
 
-### Frontend (`apps/frontend/.env`)
+### Frontend (`apps/web/.env.local`)
 
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:8000
@@ -317,6 +317,15 @@ When working with AI assistants, they should:
 3. Read `docs/AGENTS_APPENDLOG.md` (last ~100 lines) for recent changes
 4. Log significant decisions in `docs/AGENTS_APPENDLOG.md`
 
+### Agent Session Logging (entire.io)
+
+This template uses [entire.io](https://entire.io/) to log Claude Code (and other coding agent) prompts and responses. The `.entire/` directory at the repo root stores the configuration:
+
+- **`.entire/settings.json`** — committed; controls logging strategy and telemetry
+- **`.entire/logs/`**, **`.entire/tmp/`**, **`.entire/metadata/`** — gitignored by `.entire/.gitignore`; contain the actual session data
+
+The current config (`strategy: "manual-commit"`) means sessions are only persisted when you explicitly commit them. Telemetry is disabled.
+
 ### Code Style
 
 #### JavaScript/TypeScript
@@ -325,85 +334,81 @@ When working with AI assistants, they should:
 - Prefer `const` over `let`, never use `var`
 - Use async/await instead of promise chains
 
-#### Python
-- Follow PEP 8 style guide
-- Use type hints for all function signatures
-- Use async/await for I/O operations in FastAPI
-- Use Pydantic models for request/response validation
+#### Node.js/Express
+- Use ESM imports with explicit `.js` extensions in TypeScript source files
+- Use `getEnvironment()` for env vars (never `process.env` directly)
+- Define Zod schemas for request/response shapes; infer types with `z.infer<>`
+- Use `next(error)` to propagate errors to the central error handler
 
 ### Testing
 
 Frontend:
 ```bash
-cd apps/frontend
+cd apps/web
 npm test
 ```
 
 Backend:
 ```bash
 cd apps/api
-pytest
+npm run type-check
 ```
 
-## API Documentation
+## API Health
 
-FastAPI automatically generates interactive API documentation:
+The Express backend provides the following endpoints:
 
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-- OpenAPI JSON: `http://localhost:8000/openapi.json`
+- Health check: `http://localhost:8000/health`
+- Redis test: `http://localhost:8000/redis/test`
+- Supabase test: `http://localhost:8000/supabase/test`
+- Langfuse test: `http://localhost:8000/langfuse/test`
+- AI + trace demo: `POST http://localhost:8000/langfuse/trace-example` (requires `ANTHROPIC_API_KEY`)
 
 ## Common Tasks
 
 ### Adding a New API Endpoint
 
-1. Create a new router in `apps/api/routers/`
-2. Import and include it in `main.py`
-3. Document with FastAPI decorators and docstrings
+1. Create a new router file in `apps/api/src/routes/`
+2. Define Zod schemas in `apps/api/src/types/index.ts`
+3. Mount it in `apps/api/src/index.ts` with `app.use("/prefix", router)`
 
 ### Adding a New Frontend Page
 
-1. Create a new file in `apps/frontend/app/`
+1. Create a new file in `apps/web/app/`
 2. Follow Next.js App Router conventions
 3. Import and use shared components from `components/`
 
 ### Database Migrations
 
-If using a database ORM like SQLAlchemy or Prisma:
-
+If using Prisma:
 ```bash
-# SQLAlchemy (Alembic)
 cd apps/api
-alembic revision --autogenerate -m "description"
-alembic upgrade head
+npx prisma migrate dev --name "description"
+npx prisma migrate deploy  # Production
+```
 
-# Prisma
-cd apps/frontend
-npx prisma migrate dev
+If using Supabase migrations directly:
+```bash
+# Regenerate TypeScript types after schema changes
+npx supabase gen types typescript --project-id YOUR_ID > supabase/types.ts
 ```
 
 ## Troubleshooting
 
 ### Build Errors
 
-- Frontend: Ensure all TypeScript errors are resolved with `npm run build`
-- Backend: Check Python version and dependencies with `pip list`
+- Frontend (`apps/web`): `npm run type-check` then `npm run build`
+- Backend (`apps/api`): `npm run type-check` then `npm run build`
 
 ### CORS Issues
 
-If you encounter CORS errors, ensure your FastAPI app includes CORS middleware:
+CORS is configured in `apps/api/src/middleware/cors.ts`. Update `CORS_ORIGINS` in your `.env` file:
 
-```python
-from fastapi.middleware.cors import CORSMiddleware
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+```bash
+CORS_ORIGINS=http://localhost:3000,https://yourapp.vercel.app
 ```
+
+Localhost is always allowed automatically. Check server logs for `🚫 CORS rejected: <origin>` messages when debugging.
 
 ## Contributing
 

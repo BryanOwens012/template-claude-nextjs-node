@@ -9,7 +9,7 @@ OpenGraph images should be **1200x630 pixels** for optimal display on social med
 ### Option 1: Using ImageMagick
 ```bash
 # Convert SVG to PNG with proper dimensions
-cd apps/frontend/public
+cd apps/web/public
 convert ../app/icon.svg -resize 1200x630 -gravity center -extent 1200x630 icon.png
 ```
 

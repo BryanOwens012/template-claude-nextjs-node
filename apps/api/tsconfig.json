@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "esnext",
+    "lib": ["ES2022", "DOM"],
+    "outDir": "./dist",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "moduleResolution": "node",
+    "types": ["node"],
+    "baseUrl": "./",
+    "paths": { "@/*": ["src/*"] }
+  },
+  "include": ["src/**/*", "supabase/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
