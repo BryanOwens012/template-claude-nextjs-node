@@ -1,0 +1,21 @@
+# Vercel should only deploy the frontend
+# Ignore everything except apps/frontend
+
+# Ignore root level files and directories
+/*
+!/.env
+!/apps/
+
+# Ignore all apps except frontend
+/apps/*
+!/apps/frontend/
+
+# Explicitly ignore backend services
+/apps/api/
+/apps/*/
+!/apps/frontend/
+
+# Ignore documentation and config files
+/docs/
+*.md
+!apps/frontend/**/*.md

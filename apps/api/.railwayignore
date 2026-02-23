@@ -1,0 +1,40 @@
+# Railway deployment - exclude development files and caches
+
+# Version control
+.git/
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+*.code-workspace
+
+# Development virtual environments
+venv/
+.venv/
+
+# Python cache and build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Local environment files
+.env.local
+.env.development
+
+# Testing
+tests/
+test_*.py
+*_test.py
+
+# Documentation
+*.md
+!README.md
+
+# Logs
+*.log

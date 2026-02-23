@@ -1,0 +1,362 @@
+# Template Next.js + FastAPI .gitignore
+# Comprehensive ignore file for full-stack TypeScript/Python project
+
+# ============================================
+# SECRETS & CREDENTIALS (CRITICAL)
+# ============================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+secrets/
+credentials/
+config/secrets.json
+config/credentials.json
+
+# API Keys & Tokens
+*_api_key.txt
+*_credentials.json
+*_service_key.txt
+*_token.txt
+oauth_tokens/
+
+# Database Credentials
+database.ini
+db_config.json
+postgres_password.txt
+
+# Cloud Provider Credentials
+.supabase/
+.railway/
+.vercel
+
+# ============================================
+# PYTHON BACKEND (FastAPI)
+# ============================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+!apps/frontend/lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+.virtualenv/
+pythonenv*/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Flask/FastAPI
+instance/
+.webassets-cache
+*.db
+*.sqlite
+*.sqlite3
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# pyenv
+.python-version
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# ============================================
+# NODE.JS / NEXT.JS FRONTEND
+# ============================================
+# Dependencies
+node_modules/
+jspm_packages/
+.pnp
+.pnp.js
+
+# Next.js build output
+.next/
+out/
+build/
+
+# Production build
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Testing
+coverage/
+.nyc_output
+
+# Misc
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Local env files
+.env*.local
+
+# Turbo
+.turbo
+
+# ============================================
+# TYPESCRIPT
+# ============================================
+*.tsbuildinfo
+
+# ============================================
+# DATABASE
+# ============================================
+# PostgreSQL
+*.dump
+*.backup
+postgres_data/
+pgdata/
+
+# SQLite (if used for local dev)
+*.db
+*.sqlite
+*.sqlite3
+
+# Prisma
+prisma/migrations/*.sql
+!prisma/migrations/migration_lock.toml
+prisma/.env
+.prisma/
+
+# Redis dumps
+dump.rdb
+appendonly.aof
+
+# ============================================
+# AI MODEL ARTIFACTS
+# ============================================
+# Model caches
+.claude_cache/
+.openai_cache/
+model_outputs/
+
+# Fine-tuned models (if applicable)
+models/fine_tuned/
+*.pt
+*.pth
+*.h5
+*.ckpt
+
+# ============================================
+# DATA FILES
+# ============================================
+# Raw scraped data (too large for git)
+data/raw/
+data/scraped/
+data/processed/
+
+# CSV exports
+*.csv
+!example_data.csv
+
+# JSON data dumps
+data/*.json
+
+# Parquet files
+*.parquet
+
+# Large data directories
+data/bulk/
+data/archive/
+
+# ============================================
+# LOGS
+# ============================================
+logs/
+*.log
+log_*.txt
+
+# PM2 logs
+.pm2/
+pm2-logs/
+
+# ============================================
+# DOCKER
+# ============================================
+# Docker volumes
+docker-data/
+postgres-data/
+redis-data/
+
+# Docker overrides
+docker-compose.override.yml
+
+# ============================================
+# IDE & EDITORS
+# ============================================
+# VSCode; actually we will commit VSCode settings
+# .vscode/
+# !.vscode/settings.json.example
+# !.vscode/extensions.json
+# *.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# JetBrains
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# ============================================
+# OS FILES
+# ============================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================
+# TEMPORARY FILES
+# ============================================
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+# ============================================
+# DEPLOYMENT & INFRASTRUCTURE
+# ============================================
+# Railway
+.railway/
+
+# Vercel
+.vercel
+
+# Supabase
+.supabase/
+
+# ============================================
+# TESTING
+# ============================================
+# Jest
+jest_cache/
+
+# Pytest
+.pytest_cache/
+
+# Test data
+test_data/
+fixtures/generated/
+
+# ============================================
+# MISCELLANEOUS
+# ============================================
+# Backup files
+*.backup
+*.old
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.rar
+
+# Debug files
+debug/
+debug_*.json
+
+# Documentation build
+docs/_build/
+site/
+
+# Screenshots
+screenshots/
+
+# Generated docs
+# AGENTS_APPENDLOG.md
