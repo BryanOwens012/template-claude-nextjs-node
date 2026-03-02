@@ -18,6 +18,7 @@ A production-ready template for rapidly spinning up full-stack applications with
 ## Tech Stack
 
 ### Frontend
+
 - **Framework**: Next.js 15+
 - **UI Library**: React 19
 - **Language**: TypeScript 5+
@@ -26,6 +27,7 @@ A production-ready template for rapidly spinning up full-stack applications with
 - **Deployment**: Vercel
 
 ### Backend
+
 - **Framework**: Express 5
 - **Runtime**: Node.js 22+
 - **Language**: TypeScript with ESM modules
@@ -137,6 +139,7 @@ API server running at [http://localhost:8000](http://localhost:8000)
 The API uses Redis for caching. For local development, you can either:
 
 **Option 1: Run Redis locally**
+
 ```bash
 # macOS (using Homebrew)
 brew install redis
@@ -167,12 +170,14 @@ python scripts/test_services.py --api-url https://your-api.railway.app
 ```
 
 The test script will check:
+
 - API root endpoint connectivity
 - Health check endpoint
 - Redis connection and operations
 - Supabase connection and operations
 
 **Alternative: Manual testing with curl**
+
 ```bash
 # Test Redis
 curl http://localhost:8000/redis/test
@@ -194,6 +199,7 @@ curl http://localhost:8000/health
 4. Deploy
 
 The `vercel.json` is simplified — Vercel auto-detects Next.js:
+
 - Deploy on pushes to `main` and `develop` branches
 - After deploying, set root directory to `apps/web` in the Vercel dashboard (Settings → General → Root Directory)
 
@@ -218,17 +224,20 @@ Each service under `apps/` can be deployed independently to Railway.
 8. Deploy
 
 **Per-service configuration files in `apps/api/`:**
+
 - `railway.json` - Deployment configuration
 - `.railwayignore` - Excludes development files and caches
 - `nixpacks.toml` - Build configuration (Node.js 22, npm ci + npm run build)
 - `package.json` / `package-lock.json` - Node.js dependencies for this service
 
 The `railway.json` is configured for:
+
 - Automatic builds with NIXPACKS
 - Health check endpoint at `/health` (tests both Redis and Supabase)
 - Automatic restarts on failure
 
 **Service Configuration:**
+
 - **Redis**: Socket keepalive with TCP settings optimized for Railway
 - **Supabase**: Works with any Supabase project (no special Railway plugin needed)
 - **Graceful degradation**: API continues to work if services are unavailable
@@ -251,6 +260,7 @@ To add additional backend services:
 6. Deploy independently
 
 **Example structure for multiple services:**
+
 ```
 apps/
 ├── web/              # Next.js frontend
@@ -312,6 +322,7 @@ This template includes comprehensive documentation for AI-assisted development:
 - **docs/AGENTS_APPENDLOG.md**: Decision log for tracking architectural choices and learnings
 
 When working with AI assistants, they should:
+
 1. Read `CLAUDE.md` for complete development guidelines
 2. Read `README.md` for project overview and setup
 3. Read `docs/AGENTS_APPENDLOG.md` (last ~100 lines) for recent changes
@@ -326,15 +337,59 @@ This template uses [entire.io](https://entire.io/) to log Claude Code (and other
 
 The current config (`strategy: "manual-commit"`) means sessions are only persisted when you explicitly commit them. Telemetry is disabled.
 
+### Code Quality Automation (Formatters & Linters)
+
+This template includes automated code quality checks powered by **Biome**, **Prettier**, and **sql-formatter**:
+
+**Pre-commit Hook** — Runs automatically before each commit:
+
+```bash
+npm run typecheck    # Type checking for frontend and backend
+npm run build        # Build verification
+npm run format       # Auto-format code (JS/TS, SQL, shell, markdown)
+npm run lint         # Lint checks (JS/TS, shell scripts)
+```
+
+If any step fails, the commit is blocked. Fix issues and try again.
+
+**Available npm scripts** (from root directory):
+
+```bash
+# Run all checks together (same as pre-commit)
+npm run typecheck && npm run build && npm run format && npm run lint
+
+# Run checks without fixing (just report issues)
+npm run format:check
+npm run lint:check
+
+# Configuration files
+.editorconfig             # Shell script formatting standards
+biome.json               # JS/TS formatting and linting rules
+.prettierrc              # Markdown formatter configuration
+.sql-formatter.json      # PostgreSQL SQL formatting
+.husky/pre-commit        # Pre-commit hook script
+```
+
+**Configuration details:**
+
+- **Biome**: Single quotes, 2-space indent, 100-char line width, strict rules (no unused imports/vars, require `const`)
+- **Prettier**: For markdown files with 100-char print width
+- **sql-formatter**: PostgreSQL dialect with 2-space indent
+- **EditorConfig**: Shell script formatting standards
+
+The pre-commit hook ensures high code quality by catching issues early before they make it into the repository.
+
 ### Code Style
 
 #### JavaScript/TypeScript
+
 - Use arrow functions: `const foo = () => {}`
 - Use modern ES6+ syntax (destructuring, spread, optional chaining)
 - Prefer `const` over `let`, never use `var`
 - Use async/await instead of promise chains
 
 #### Node.js/Express
+
 - Use ESM imports with explicit `.js` extensions in TypeScript source files
 - Use `getEnvironment()` for env vars (never `process.env` directly)
 - Define Zod schemas for request/response shapes; infer types with `z.infer<>`
@@ -343,12 +398,14 @@ The current config (`strategy: "manual-commit"`) means sessions are only persist
 ### Testing
 
 Frontend:
+
 ```bash
 cd apps/web
 npm test
 ```
 
 Backend:
+
 ```bash
 cd apps/api
 npm run type-check
@@ -381,6 +438,7 @@ The Express backend provides the following endpoints:
 ### Database Migrations
 
 If using Prisma:
+
 ```bash
 cd apps/api
 npx prisma migrate dev --name "description"
@@ -388,6 +446,7 @@ npx prisma migrate deploy  # Production
 ```
 
 If using Supabase migrations directly:
+
 ```bash
 # Regenerate TypeScript types after schema changes
 npx supabase gen types typescript --project-id YOUR_ID > supabase/types.ts
@@ -424,6 +483,7 @@ MIT License - Feel free to use this template for your projects.
 ## Support
 
 For issues and questions:
+
 - Check the documentation in `docs/`
 - Review `CLAUDE.md` for coding guidelines
 - Open an issue in the repository
