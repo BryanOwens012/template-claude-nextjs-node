@@ -1,0 +1,35 @@
+{
+  "name": "boola-bot",
+  "version": "1.0.0",
+  "description": "BoolaBot monorepo - AI assistant for Yale Class of 2021",
+  "private": true,
+  "scripts": {
+    "typecheck": "npm run typecheck:api && npm run typecheck:web",
+    "typecheck:api": "cd apps/api && npx tsc --noEmit",
+    "typecheck:web": "cd apps/web && npx tsc --noEmit",
+    "build": "npm run build:api && npm run build:web",
+    "build:api": "cd apps/api && npm run build",
+    "build:web": "cd apps/web && npm run build",
+    "lint": "npm run lint:js",
+    "lint:check": "npm run lint:js:check",
+    "lint:js": "biome check --write --no-errors-on-unmatched .",
+    "lint:js:check": "biome check --no-errors-on-unmatched .",
+    "format": "npm run format:js && npm run format:sql && npm run format:shell && npm run format:md",
+    "format:check": "npm run format:js:check && npm run format:sql:check && npm run format:shell:check && npm run format:md:check",
+    "format:md": "npx prettier --write \"**/*.md\"",
+    "format:md:check": "npx prettier --check \"**/*.md\"",
+    "format:js": "biome format --write --no-errors-on-unmatched .",
+    "format:js:check": "biome format .",
+    "format:sql": "git ls-files '*.sql' | xargs -I {} npx sql-formatter --fix -l postgresql {}",
+    "format:sql:check": "git ls-files '*.sql' | xargs -I {} npx sql-formatter -l postgresql {}",
+    "format:shell": "git ls-files '*.sh' | xargs -r shfmt --write --simplify",
+    "format:shell:check": "git ls-files '*.sh' | xargs -r shfmt --diff",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.4",
+    "husky": "^9.1.7",
+    "prettier": "^3.8.1",
+    "sql-formatter": "15.7.2"
+  }
+}
