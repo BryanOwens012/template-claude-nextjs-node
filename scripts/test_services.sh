@@ -4,8 +4,8 @@
 API_URL="${1:-http://localhost:8000}"
 echo "=== Service Tests: $API_URL ==="
 for ENDPOINT in "/" "/health" "/redis/test" "/supabase/test"; do
-  echo "--- $ENDPOINT ---"
-  curl -sf "$API_URL$ENDPOINT" | python3 -m json.tool 2>/dev/null || echo "❌ FAIL: $ENDPOINT"
-  echo ""
+	echo "--- $ENDPOINT ---"
+	curl -sf "$API_URL$ENDPOINT" | python3 -m json.tool 2>/dev/null || echo "❌ FAIL: $ENDPOINT"
+	echo ""
 done
 echo "=== Done ==="

@@ -5,7 +5,7 @@
  * This is an example of a general utility that belongs in lib/.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 /**
  * Custom error class for API errors
@@ -14,24 +14,21 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
-    public data?: unknown
+    public data?: unknown,
   ) {
     super(message);
-    this.name = "ApiError";
+    this.name = 'ApiError';
   }
 }
 
 /**
  * Generic API request handler
  */
-const apiRequest = async <T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> => {
+const apiRequest = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
   const url = `${API_BASE_URL}${endpoint}`;
 
   const defaultHeaders: HeadersInit = {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   };
 
   const config: RequestInit = {
@@ -50,7 +47,7 @@ const apiRequest = async <T>(
       throw new ApiError(
         errorData.message || errorData.detail || `API error: ${response.status}`,
         response.status,
-        errorData
+        errorData,
       );
     }
 
@@ -66,10 +63,7 @@ const apiRequest = async <T>(
     }
 
     // Network or parsing errors
-    throw new ApiError(
-      error instanceof Error ? error.message : "Unknown error occurred",
-      0
-    );
+    throw new ApiError(error instanceof Error ? error.message : 'Unknown error occurred', 0);
   }
 };
 
@@ -79,7 +73,7 @@ const apiRequest = async <T>(
 export const get = <T>(endpoint: string, options?: RequestInit): Promise<T> => {
   return apiRequest<T>(endpoint, {
     ...options,
-    method: "GET",
+    method: 'GET',
   });
 };
 
@@ -89,11 +83,11 @@ export const get = <T>(endpoint: string, options?: RequestInit): Promise<T> => {
 export const post = <T, D = unknown>(
   endpoint: string,
   data?: D,
-  options?: RequestInit
+  options?: RequestInit,
 ): Promise<T> => {
   return apiRequest<T>(endpoint, {
     ...options,
-    method: "POST",
+    method: 'POST',
     body: data ? JSON.stringify(data) : undefined,
   });
 };
@@ -104,11 +98,11 @@ export const post = <T, D = unknown>(
 export const put = <T, D = unknown>(
   endpoint: string,
   data?: D,
-  options?: RequestInit
+  options?: RequestInit,
 ): Promise<T> => {
   return apiRequest<T>(endpoint, {
     ...options,
-    method: "PUT",
+    method: 'PUT',
     body: data ? JSON.stringify(data) : undefined,
   });
 };
@@ -119,11 +113,11 @@ export const put = <T, D = unknown>(
 export const patch = <T, D = unknown>(
   endpoint: string,
   data?: D,
-  options?: RequestInit
+  options?: RequestInit,
 ): Promise<T> => {
   return apiRequest<T>(endpoint, {
     ...options,
-    method: "PATCH",
+    method: 'PATCH',
     body: data ? JSON.stringify(data) : undefined,
   });
 };
@@ -134,7 +128,7 @@ export const patch = <T, D = unknown>(
 export const del = <T>(endpoint: string, options?: RequestInit): Promise<T> => {
   return apiRequest<T>(endpoint, {
     ...options,
-    method: "DELETE",
+    method: 'DELETE',
   });
 };
 

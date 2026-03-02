@@ -1,5 +1,5 @@
-import { NodeSDK } from "@opentelemetry/sdk-node";
-import { LangfuseSpanProcessor } from "@langfuse/otel";
+import { LangfuseSpanProcessor } from '@langfuse/otel';
+import { NodeSDK } from '@opentelemetry/sdk-node';
 
 let sdk: NodeSDK | null = null;
 
@@ -8,7 +8,7 @@ export const initTelemetry = () => {
   const secretKey = process.env.LANGFUSE_SECRET_KEY;
 
   if (!publicKey || !secretKey) {
-    console.warn("⚠️  Langfuse OTel tracing disabled (keys not set)");
+    console.warn('⚠️  Langfuse OTel tracing disabled (keys not set)');
     return;
   }
 
@@ -19,17 +19,15 @@ export const initTelemetry = () => {
           // Only export AI SDK and Langfuse SDK spans — filter out Express, HTTP, and other library noise
           shouldExportSpan: (span) => {
             const scope = span.otelSpan.instrumentationScope.name;
-            return scope === "ai" || scope.startsWith("ai.") || scope === "langfuse-sdk";
+            return scope === 'ai' || scope.startsWith('ai.') || scope === 'langfuse-sdk';
           },
         }),
       ],
     });
     sdk.start();
-    console.log("✅ Langfuse OTel tracing initialized");
+    console.log('✅ Langfuse OTel tracing initialized');
   } catch (error) {
-    console.warn(
-      `⚠️  OTel init failed: ${error instanceof Error ? error.message : String(error)}`
-    );
+    console.warn(`⚠️  OTel init failed: ${error instanceof Error ? error.message : String(error)}`);
     sdk = null;
   }
 };
@@ -40,7 +38,7 @@ export const shutdownTelemetry = async () => {
     await sdk.shutdown();
   } catch (error) {
     console.warn(
-      `⚠️  OTel shutdown error: ${error instanceof Error ? error.message : String(error)}`
+      `⚠️  OTel shutdown error: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 };

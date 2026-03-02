@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
 // Override metadata for this specific page
 export const metadata: Metadata = {
-  title: "About",
-  description: "Learn more about this Next.js + Node.js template",
+  title: 'About',
+  description: 'Learn more about this Next.js + Node.js template',
 };
 
 const AboutPage = () => {
@@ -13,9 +13,7 @@ const AboutPage = () => {
       <main className="flex flex-col gap-8 items-center max-w-2xl">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            About This Template
-          </h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">About This Template</h1>
           <p className="text-lg text-gray-600 dark:text-gray-400">
             Example route demonstrating Next.js App Router
           </p>
@@ -24,38 +22,47 @@ const AboutPage = () => {
         {/* Content */}
         <div className="w-full space-y-6">
           <div className="p-6 border border-gray-200 dark:border-gray-800 rounded-lg">
-            <h2 className="text-2xl font-semibold mb-3">
-              📁 File-Based Routing
-            </h2>
+            <h2 className="text-2xl font-semibold mb-3">📁 File-Based Routing</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-3">
-              This page is located at <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">app/about/page.tsx</code>
+              This page is located at{' '}
+              <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">
+                app/about/page.tsx
+              </code>
             </p>
             <p className="text-gray-600 dark:text-gray-400">
-              Next.js automatically creates the <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">/about</code> route
+              Next.js automatically creates the{' '}
+              <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">/about</code> route
               based on the folder structure.
             </p>
           </div>
 
           <div className="p-6 border border-gray-200 dark:border-gray-800 rounded-lg">
-            <h2 className="text-2xl font-semibold mb-3">
-              🎯 Page-Specific Metadata
-            </h2>
+            <h2 className="text-2xl font-semibold mb-3">🎯 Page-Specific Metadata</h2>
             <p className="text-gray-600 dark:text-gray-400">
-              This page overrides the default metadata with its own title and description.
-              Check the page source or browser tab to see &quot;About | Next.js + Node.js&quot;
+              This page overrides the default metadata with its own title and description. Check the
+              page source or browser tab to see &quot;About | Next.js + Node.js&quot;
             </p>
           </div>
 
           <div className="p-6 border border-gray-200 dark:border-gray-800 rounded-lg">
-            <h2 className="text-2xl font-semibold mb-3">
-              🔧 Tech Stack
-            </h2>
+            <h2 className="text-2xl font-semibold mb-3">🔧 Tech Stack</h2>
             <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-              <li>• <strong>Frontend:</strong> Next.js 15, React 19, TypeScript, Tailwind CSS, Radix UI, shadcn/ui</li>
-              <li>• <strong>Backend:</strong> Express 5, Node.js 22+, TypeScript</li>
-              <li>• <strong>Database:</strong> Supabase (PostgreSQL)</li>
-              <li>• <strong>Caching:</strong> Redis</li>
-              <li>• <strong>Deployment:</strong> Vercel + Railway</li>
+              <li>
+                • <strong>Frontend:</strong> Next.js 15, React 19, TypeScript, Tailwind CSS, Radix
+                UI, shadcn/ui
+              </li>
+              <li>
+                • <strong>Backend:</strong> Express 5, Node.js 22+, TypeScript
+              </li>
+              <li>
+                • <strong>Database:</strong> Supabase (PostgreSQL)
+              </li>
+              <li>
+                • <strong>Caching:</strong> Redis
+              </li>
+              <li>
+                • <strong>Deployment:</strong> Vercel + Railway
+              </li>
             </ul>
           </div>
         </div>
@@ -81,9 +88,7 @@ const AboutPage = () => {
 
       {/* Footer */}
       <footer className="text-center text-sm text-gray-500 dark:text-gray-600">
-        <p>
-          This is an example route showing Next.js App Router conventions
-        </p>
+        <p>This is an example route showing Next.js App Router conventions</p>
       </footer>
     </div>
   );

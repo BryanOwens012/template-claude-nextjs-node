@@ -1,66 +1,64 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata, Viewport } from 'next';
 
 export const viewport: Viewport = {
-  width: "device-width",
+  width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
   ],
 };
 
 export const metadata: Metadata = {
   title: {
-    default: "Next.js + Node.js Template",
-    template: "%s | Next.js + Node.js",
+    default: 'Next.js + Node.js Template',
+    template: '%s | Next.js + Node.js',
   },
   description:
-    "A production-ready template for rapidly spinning up full-stack applications with Next.js frontend and Node.js/Express backend services.",
+    'A production-ready template for rapidly spinning up full-stack applications with Next.js frontend and Node.js/Express backend services.',
   keywords: [
-    "Next.js",
-    "React",
-    "Express",
-    "Node.js",
-    "TypeScript",
-    "Tailwind CSS",
-    "Full Stack",
-    "Template",
-    "Supabase",
-    "Redis",
-    "Radix UI",
-    "shadcn/ui",
+    'Next.js',
+    'React',
+    'Express',
+    'Node.js',
+    'TypeScript',
+    'Tailwind CSS',
+    'Full Stack',
+    'Template',
+    'Supabase',
+    'Redis',
+    'Radix UI',
+    'shadcn/ui',
   ],
-  authors: [{ name: "Your Name" }],
-  creator: "Your Name",
-  publisher: "Your Name",
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  ),
+  authors: [{ name: 'Your Name' }],
+  creator: 'Your Name',
+  publisher: 'Your Name',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   openGraph: {
-    type: "website",
-    locale: "en_US",
-    url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-    siteName: "Next.js + Node.js Template",
-    title: "Next.js + Node.js Template",
+    type: 'website',
+    locale: 'en_US',
+    url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+    siteName: 'Next.js + Node.js Template',
+    title: 'Next.js + Node.js Template',
     description:
-      "A template for rapidly spinning up full-stack applications with Next.js frontend and Node.js backend services.",
+      'A template for rapidly spinning up full-stack applications with Next.js frontend and Node.js backend services.',
     images: [
       {
-        url: "/icon.png",
+        url: '/icon.png',
         width: 1200,
         height: 630,
-        alt: "Next.js + Node.js Template",
+        alt: 'Next.js + Node.js Template',
       },
     ],
   },
   twitter: {
-    card: "summary_large_image",
-    title: "Next.js + Node.js Template",
+    card: 'summary_large_image',
+    title: 'Next.js + Node.js Template',
     description:
-      "A template for rapidly spinning up full-stack applications with Next.js frontend and Node.js backend services.",
-    images: ["/icon.png"],
+      'A template for rapidly spinning up full-stack applications with Next.js frontend and Node.js backend services.',
+    images: ['/icon.png'],
   },
   robots: {
     index: true,
@@ -68,9 +66,9 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
     },
   },
   // Note: Icons (favicon, apple-icon) are auto-detected from app/ directory

@@ -1,8 +1,8 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 // Matches the HealthResponse interface in apps/web/components/ApiStatus.tsx exactly
 export const HealthResponseSchema = z.object({
-  status: z.enum(["healthy", "degraded"]),
+  status: z.enum(['healthy', 'degraded']),
   redis: z.string(),
   supabase: z.string(),
   langfuse: z.string().optional(),
@@ -15,7 +15,7 @@ export const ApiInfoSchema = z.object({
   name: z.string(),
   version: z.string(),
   description: z.string(),
-  status: z.enum(["operational", "degraded"]),
+  status: z.enum(['operational', 'degraded']),
   timestamp: z.string().datetime(),
 });
 export type ApiInfo = z.infer<typeof ApiInfoSchema>;

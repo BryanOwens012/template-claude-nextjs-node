@@ -1,5 +1,5 @@
-import Link from "next/link";
-import ApiStatus from "@/components/ApiStatus";
+import Link from 'next/link';
+import ApiStatus from '@/components/ApiStatus';
 
 const Home = () => {
   return (
@@ -79,7 +79,8 @@ const Home = () => {
       {/* Footer */}
       <footer className="text-center text-sm text-gray-500 dark:text-gray-600">
         <p>
-          Edit <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">app/page.tsx</code> to get started
+          Edit <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">app/page.tsx</code>{' '}
+          to get started
         </p>
       </footer>
     </div>

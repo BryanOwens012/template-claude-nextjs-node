@@ -7,6 +7,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 **Status**: Template repository (ready for customization)
 
 ### Tech Stack
+
 - **Frontend**:
   - Next.js 15+ (App Router, React Server Components)
   - React 19
@@ -27,6 +28,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
   - Backend: Railway (auto-configured via railway.json)
 
 ### Development Philosophy
+
 - **Code Quality First**: Always test after changes, fix all TypeScript errors before committing
 - **Modern Syntax**: Use latest ES6+ and Node.js 22+ features
 - **Documentation**: Log significant decisions in docs/AGENTS_APPENDLOG.md (append to that file only; don't read anything in it beyond the final/trailing 20 lines)
@@ -35,6 +37,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 ## Development Guidelines
 
 ### Code Quality Standards
+
 - **Always test after every change** - Run the application and verify functionality works
 - **Build before committing** - Ensure builds pass without errors
 - **Fix all type errors** - No ignoring TypeScript type errors
@@ -42,6 +45,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 - **Read before writing** - Always use Read tool to check existing code before making changes
 
 ### JavaScript/TypeScript Style
+
 - Use **TypeScript** for all new code with proper type definitions
 - Use **arrow functions** for all function expressions: `const foo = () => {}`
 - Use **modern ES6+ syntax**:
@@ -55,6 +59,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 - Prefer functional array methods: `map`, `filter`, `reduce`
 
 ### Express/Node.js Style
+
 - Use **ESM imports** with explicit `.js` extensions in TypeScript source files (e.g., `import { foo } from "@/lib/bar.js"`)
   - TypeScript doesn't rewrite extensions; Node.js ESM requires them
   - Symptom of missing extension: `Error: Cannot find module` at startup
@@ -69,18 +74,21 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 **CRITICAL: Always commit package-lock.json after installing packages**
 
 When you install a new package:
+
 1. Navigate to the service directory: `cd apps/api`
 2. Install the package: `npm install <package-name>`
 3. Commit the updated `package.json` and `package-lock.json`
 4. For CI/CD, use `npm ci` (requires committed lockfile) instead of `npm install`
 
 **For this monorepo:**
+
 - Each service under `apps/` has its own `package.json` and `package-lock.json`
 - `apps/api/package.json` - Node.js dependencies for the API service
 - Each service is independently deployable with its own dependencies
 - If you add a new service, create its own `package.json`
 
 **Example workflow:**
+
 ```bash
 # Navigate to service directory
 cd apps/api
@@ -94,12 +102,14 @@ git commit -m "Add <new-package> dependency"
 ```
 
 **DO NOT:**
+
 - ❌ Install packages without committing package-lock.json
 - ❌ Use outdated or conflicting versions
 - ❌ Commit code that requires packages not in package.json
 - ❌ Gitignore package-lock.json (it must be committed)
 
 ### React Best Practices
+
 - Use **functional components** with hooks only
 - Follow React Server Components patterns where possible
 - Use `"use client"` directive only when necessary (client-side interactivity required)
@@ -107,8 +117,8 @@ git commit -m "Add <new-package> dependency"
 - Clean up effects with return functions
 - Use proper dependency arrays for hooks
 
-
 ### Component Development
+
 - Place reusable UI components in appropriate directories
 - Define TypeScript interfaces for all props
 - Use descriptive, semantic names
@@ -116,6 +126,7 @@ git commit -m "Add <new-package> dependency"
 - Follow accessibility best practices (ARIA labels, semantic HTML)
 
 ### API Development
+
 - Create routers for logical groupings of endpoints
 - Use consistent naming conventions (RESTful when appropriate)
 - Version APIs when making breaking changes
@@ -125,6 +136,7 @@ git commit -m "Add <new-package> dependency"
 ### Code Organization
 
 **Frontend:**
+
 ```
 apps/web/
 ├── app/                  # Next.js app router
@@ -137,6 +149,7 @@ apps/web/
 ```
 
 **Backend:**
+
 ```
 apps/api/
 ├── package.json         # Node.js dependencies and scripts
@@ -169,12 +182,14 @@ apps/api/
 ```
 
 **Root:**
+
 ```
 vercel.json            # Vercel deployment config for web app (simplified)
 .vercelignore          # Vercel ignore patterns (build only apps/web/)
 ```
 
 ### Testing Workflow
+
 1. Make a change
 2. **Test immediately** in the browser/application
 3. Verify the specific functionality works
@@ -183,6 +198,7 @@ vercel.json            # Vercel deployment config for web app (simplified)
 6. Only proceed to next change after current one works
 
 ### Error Handling
+
 - Handle errors gracefully with try/catch (JS) or try/except (Python)
 - Provide meaningful error messages
 - Log errors appropriately for debugging
@@ -190,6 +206,7 @@ vercel.json            # Vercel deployment config for web app (simplified)
 - Return proper HTTP status codes from APIs
 
 ### Performance Considerations
+
 - Lazy load components when appropriate
 - Memoize expensive computations
 - Avoid unnecessary re-renders
@@ -199,6 +216,7 @@ vercel.json            # Vercel deployment config for web app (simplified)
 - Cache API responses when appropriate
 
 ### Git Workflow
+
 - Make small, focused commits
 - Write clear, descriptive commit messages
 - Don't commit untested code
@@ -208,6 +226,7 @@ vercel.json            # Vercel deployment config for web app (simplified)
 ## Common Pitfalls to Avoid
 
 ### General
+
 - ❌ Don't assume code exists - always verify by reading files
 - ❌ Don't skip testing after changes
 - ❌ Don't ignore type errors
@@ -216,6 +235,7 @@ vercel.json            # Vercel deployment config for web app (simplified)
 - ❌ Don't duplicate code - create reusable utilities instead
 
 ### JavaScript/TypeScript
+
 - ❌ Don't use outdated syntax (var, function declarations, etc.)
 - ❌ Don't ignore TypeScript errors or use `any` without justification
 - ❌ Don't forget to handle loading and error states
@@ -223,6 +243,7 @@ vercel.json            # Vercel deployment config for web app (simplified)
 - ❌ Don't mutate state directly (use immutable updates)
 
 ### Node.js/Express
+
 - ❌ Don't forget `.js` extensions in ESM imports from TypeScript files
 - ❌ Don't use `process.env` directly; use `getEnvironment()` instead
 - ❌ Don't mix Zod validation with TypeScript-only types
@@ -232,12 +253,14 @@ vercel.json            # Vercel deployment config for web app (simplified)
 ## Decision Logging & Meta-Documentation
 
 ### Running Logs
+
 - **docs/AGENTS_APPENDLOG.md**: Append-only log of all significant decisions (append to that file only; don't read anything in it beyond the final/trailing 20 lines)
 - Log architecture choices, library selections, trade-offs
 - Include timestamps in format: `YYYY-MM-DD HH:MM PT` (Pacific Time)
 - Never hallucinate timestamps - ask user if current time is unknown
 
 ### What to Log
+
 - Framework/library selection decisions
 - Architecture changes
 - API design choices
@@ -248,8 +271,10 @@ vercel.json            # Vercel deployment config for web app (simplified)
 - Bug fixes that reveal important learnings
 
 ### Log Entry Format
+
 ```markdown
 ## YYYY-MM-DD HH:MM PT - Entry Title
+
 **Type:** [Decision | Implementation | Bug Fix | Refactor]
 **Change:** What was changed/decided
 **Rationale:** Why this choice was made
@@ -259,18 +284,23 @@ vercel.json            # Vercel deployment config for web app (simplified)
 ```
 
 ### Holistic Documentation
+
 After appending to AGENTS_APPENDLOG.md:
+
 1. Update README.md with any user-facing changes
 2. Incorporate key insights and improved workflows into CLAUDE.md for future reference
 
 ## Deployment
 
 ### Vercel (Web App)
+
 The `vercel.json` at the root is simplified:
+
 - Framework: Next.js (auto-detected)
 - Deploys on pushes to `main` and `develop`
 
 **Setup:**
+
 1. Connect repository to Vercel
 2. Vercel auto-detects `vercel.json`
 3. **After deploying, manually set root directory to `apps/web` in Vercel dashboard** (Settings → General → Root Directory)
@@ -278,13 +308,16 @@ The `vercel.json` at the root is simplified:
 5. Deploy
 
 ### Railway (Backend API)
+
 Each service under `apps/` can be deployed independently with its own configuration files:
+
 - `railway.json` - Deployment configuration
 - `.railwayignore` - Files to exclude from deployment
 - `nixpacks.toml` - Build configuration (Node.js version, build commands)
 - `package.json` and `package-lock.json` - Node.js dependencies for this service
 
 **Setup for API service:**
+
 1. Create new Railway service
 2. Connect repository
 3. **Set root directory to `apps/api`** in Railway service settings
@@ -294,12 +327,14 @@ Each service under `apps/` can be deployed independently with its own configurat
 7. Deploy
 
 **Why per-service configuration:**
+
 - Each service has its own dependencies and configuration
 - Services can be deployed and scaled independently
 - Easy to add new services without affecting existing ones
 - Clear separation of concerns
 
 ### Adding More Services
+
 To add additional backend services:
 
 1. Create new service directory under `apps/` (e.g., `apps/worker/`)
@@ -315,6 +350,7 @@ To add additional backend services:
 6. Deploy independently
 
 **Example multi-service structure:**
+
 ```
 apps/
 ├── web/              # Next.js frontend
@@ -339,12 +375,14 @@ apps/
 ### Environment Variables
 
 **Frontend** (`apps/web/.env.local`):
+
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:8000
 # Public vars must be prefixed with NEXT_PUBLIC_
 ```
 
 **Backend** (`apps/api/.env`):
+
 ```bash
 PORT=8000
 NODE_ENV=development
@@ -357,16 +395,18 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:3001
 ### API Integration Pattern
 
 **Frontend calling Backend:**
+
 ```typescript
 const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/endpoint`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
   body: JSON.stringify(data),
 });
 const result = await response.json();
 ```
 
 **Backend API route:**
+
 ```typescript
 import { Router } from "express";
 import { z } from "zod";
@@ -401,6 +441,7 @@ export default router;
 ### CORS Configuration
 
 CORS is configured in `src/middleware/cors.ts`. The middleware:
+
 - Automatically allows localhost (http://localhost:3000, http://localhost:3001, etc.)
 - Reads allowed origins from `CORS_ORIGINS` environment variable (comma-separated)
 - Supports wildcard `"*"` for development
@@ -409,6 +450,7 @@ CORS is configured in `src/middleware/cors.ts`. The middleware:
 ### Database Integration
 
 **Common patterns:**
+
 - Use Prisma for ORM (has excellent TypeScript support)
 - Run migrations via `npx prisma migrate`
 - Store connection string in `DATABASE_URL` environment variable
@@ -417,6 +459,7 @@ CORS is configured in `src/middleware/cors.ts`. The middleware:
 ### Supabase Types
 
 Generate TypeScript types from your Supabase schema:
+
 ```bash
 npx supabase gen types typescript --project-id YOUR_PROJECT_ID > apps/api/supabase/types.ts
 ```
@@ -424,6 +467,7 @@ npx supabase gen types typescript --project-id YOUR_PROJECT_ID > apps/api/supaba
 After regenerating, update pgvector fields manually (e.g., embedding fields to `number[] | null`).
 
 The generated `Database` type is used in `src/services/supabase.ts` for full type safety:
+
 ```typescript
 import type { Database } from "@/../../supabase/types.js";
 const supabaseClient: SupabaseClient<Database> = ...
@@ -434,7 +478,8 @@ const supabaseClient: SupabaseClient<Database> = ...
 [Langfuse](https://langfuse.com/) provides observability for LLM applications: prompt management, tracing, and session tracking.
 
 **Setup:**
-1. Get keys from [cloud.langfuse.com/project/_/settings](https://cloud.langfuse.com/project/_/settings)
+
+1. Get keys from [cloud.langfuse.com/project/\_/settings](https://cloud.langfuse.com/project/_/settings)
 2. Set in `.env`:
    ```bash
    LANGFUSE_PUBLIC_KEY=your-key
@@ -445,6 +490,7 @@ const supabaseClient: SupabaseClient<Database> = ...
 4. Health check at `/health` includes Langfuse status
 
 **Features:**
+
 - `src/services/langfuse.ts` — Manages prompts and gracefully degrades if keys are missing
 - `src/services/telemetry.ts` — OpenTelemetry SDK with LangfuseSpanProcessor (auto-captures AI SDK spans)
 - `GET /langfuse/test` — Verify Langfuse connectivity
@@ -454,6 +500,7 @@ const supabaseClient: SupabaseClient<Database> = ...
 **AI SDK + Langfuse tracing pattern:**
 
 The template uses [Vercel AI SDK](https://sdk.vercel.ai/) (`ai` + `@ai-sdk/anthropic`) for LLM calls. Both `generateText` and `streamText` are current, non-deprecated APIs:
+
 - `generateText` — non-interactive/agent use; waits for full completion before returning
 - `streamText` — interactive/chat use; streams tokens to the client in real time
 
@@ -482,7 +529,7 @@ const getCurrentWeather = tool({
 const traceAttrs = sessionId ? { sessionId: String(sessionId) } : {};
 
 await startActiveObservation("my-llm-call", async (span) => {
-  span.update({ input: { prompt } });            // annotate the Langfuse observation
+  span.update({ input: { prompt } }); // annotate the Langfuse observation
 
   await propagateAttributes(traceAttrs, async () => {
     const result = await generateText({
@@ -493,7 +540,7 @@ await startActiveObservation("my-llm-call", async (span) => {
       stopWhen: stepCountIs(3),
       experimental_telemetry: {
         isEnabled: true,
-        functionId: "my-llm-call",    // label shown in Langfuse
+        functionId: "my-llm-call", // label shown in Langfuse
         metadata: { route: "/my-route" },
       },
     });
@@ -516,18 +563,20 @@ await startActiveObservation("my-llm-call", async (span) => {
 - `experimental_telemetry` — enables AI SDK's built-in OTel instrumentation. `LangfuseSpanProcessor` in `telemetry.ts` captures these spans automatically.
 
 **Switching models:**
+
 ```typescript
 // Claude (via @ai-sdk/anthropic — already installed)
-anthropic("claude-haiku-4-5")    // fastest, cheapest
-anthropic("claude-sonnet-4-6")   // balanced
+anthropic("claude-haiku-4-5"); // fastest, cheapest
+anthropic("claude-sonnet-4-6"); // balanced
 
 // OpenAI (install @ai-sdk/openai first)
 import { createOpenAI } from "@ai-sdk/openai";
 const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY });
-openai("gpt-4o-mini")
+openai("gpt-4o-mini");
 ```
 
 **Streaming (for real-time chat):**
+
 ```typescript
 import { streamText } from "ai";
 
@@ -544,6 +593,7 @@ result.pipeTextStreamToResponse(res);
 ```
 
 **Test the scaffold:**
+
 ```bash
 # Requires ANTHROPIC_API_KEY in apps/api/.env
 curl -X POST http://localhost:8000/langfuse/trace-example \
@@ -559,6 +609,7 @@ All Langfuse features are **optional** and gracefully degrade if not configured.
 Before considering any task complete:
 
 ### Code Quality
+
 - [ ] Code verified by reading actual files (not assumed)
 - [ ] No hallucinated functions, imports, or APIs
 - [ ] Code follows style guidelines (arrow functions, type hints, etc.)
@@ -567,6 +618,7 @@ Before considering any task complete:
 - [ ] Error cases handled appropriately
 
 ### Testing
+
 - [ ] Change tested in running application
 - [ ] Functionality confirmed to work as expected
 - [ ] No console errors or warnings when testing
@@ -575,12 +627,14 @@ Before considering any task complete:
 - [ ] No regressions in existing functionality
 
 ### Documentation
+
 - [ ] Documentation updated if behavior or APIs changed
 - [ ] Significant decisions logged in AGENTS_APPENDLOG.md (append to that file only; don't read anything in it beyond the final/trailing 20 lines)
 - [ ] Code comments added for complex logic
 - [ ] README.md updated if user-facing changes were made
 
 ### Deployment Readiness
+
 - [ ] No secrets or credentials in code
 - [ ] Environment variables properly configured
 - [ ] `package.json` and `package-lock.json` updated (if Node.js)
@@ -632,12 +686,14 @@ When multiple agents or sessions work on this project:
 When using this template for a new project:
 
 ### Initial Setup
+
 1. Clone the template repository
 2. Update `README.md` with your project name and description
 3. Update this file (CLAUDE.md) "Project Overview" section with project-specific context
 4. Initialize new git repository (or update remote)
 
 ### Project-Specific Configuration
+
 1. Add project-specific environment variables to `.env.example` files
 2. Configure CORS with your actual frontend URL in `apps/api/main.py`
 3. Set up database schema (if using Supabase or other database)
@@ -645,12 +701,14 @@ When using this template for a new project:
 5. Customize API routes for your specific use case
 
 ### Documentation Updates
+
 1. Document project-specific patterns in this file (CLAUDE.md)
 2. Log initial architecture decisions in `docs/AGENTS_APPENDLOG.md`
 3. Update README.md with project-specific setup instructions
 4. Add project-specific testing instructions
 
 ### Deployment
+
 1. Connect repository to Vercel and Railway
 2. Set up environment variables in deployment dashboards
 3. Configure custom domains if needed
@@ -660,6 +718,7 @@ When using this template for a new project:
 ## Future Enhancements
 
 Common features to add based on project needs:
+
 - Database integration (PostgreSQL, MongoDB, etc.)
 - Authentication (NextAuth.js, JWT)
 - State management (Zustand, Redux)

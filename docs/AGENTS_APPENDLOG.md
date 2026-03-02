@@ -3,8 +3,10 @@
 This file tracks all significant decisions, implementations, and learnings throughout the project lifecycle.
 
 **Format for each entry:**
+
 ```markdown
 ## YYYY-MM-DD HH:MM PT - Entry Title
+
 **Type:** [Decision | Implementation | Documentation | Bug Fix | Refactor]
 **Change:** What was changed/decided
 **Context:** User prompt or situation that triggered this
@@ -18,21 +20,23 @@ This file tracks all significant decisions, implementations, and learnings throu
 ---
 
 ## 2025-10-24 14:06 PT - Template Repository Created
+
 **Type:** Implementation
 **Change:** Created Next.js + FastAPI template repository structure
 **Context:** Initial template setup for rapid project spinning
 **Rationale:** Standardize project structure, deployment configs, and best practices across future projects
 **Alternatives Considered:**
+
 - Single-service architecture: Rejected because template should support multiple backend services
 - Monolithic deployment: Rejected in favor of separate frontend (Vercel) and backend (Railway) deployments
-**Impact:**
+  **Impact:**
 - Directory structure: `apps/frontend`, `apps/api`, `docs/`
 - Comprehensive .gitignore covering Next.js, FastAPI/Python, and common patterns
 - Pre-configured vercel.json for frontend deployment
 - Pre-configured railway.json and .railwayignore for backend services
 - Documentation: README.md, CLAUDE.md, AGENTS.md, AGENTS_APPENDLOG.md
-**Time Spent:** ~45 minutes
-**Learnings:**
+  **Time Spent:** ~45 minutes
+  **Learnings:**
 - Template should be generic enough for any project but opinionated enough to provide value
 - Deployment configs (vercel.json, railway.json) should be in the right locations for auto-detection
 - .railwayignore pattern (excluding all except specific service) prevents deploying entire monorepo
@@ -68,28 +72,31 @@ When starting a new project with this template:
 ---
 
 ## 2026-02-23 16:45 PT - Backend Conversion: FastAPI → Express 5 + TypeScript
+
 **Type:** Decision | Implementation
 **Change:** Converted backend from Python FastAPI to Node.js Express 5 with TypeScript, unified entire stack to TypeScript
 **Context:** Template alignment with boola-bot monorepo structure; standardizing on unified TypeScript across frontend and backend
 **Rationale:**
+
 - **Unified Stack**: Single language (TypeScript) for entire application reduces context switching and enables code sharing (types, utilities)
 - **Developer Velocity**: Consistent tooling, build process, and deployment pattern across frontend and backend
 - **Type Safety**: Zod runtime validation + TypeScript compile-time types provide better guarantees than Python Pydantic
 - **Modern JavaScript**: ES2022+ features, native async/await, modules-first approach
 - **boola-bot Alignment**: Exact architectural parity with proven production pattern
-**Alternatives Considered:**
+  **Alternatives Considered:**
 - Keep FastAPI: Rejected because sacrifices unified stack benefits, adds Python maintenance overhead
 - Use Deno: Rejected because less ecosystem maturity and Railway support than Node.js
 - tRPC/GraphQL instead of REST: Rejected because REST remains simpler for this template
-**Impact:**
+  **Impact:**
 - Architecture: `/src/config`, `/src/middleware`, `/src/routes`, `/src/services`, `/src/types` structure
 - Build: TypeScript → JavaScript via `tsc && tsc-alias` (path alias rewriting required for ESM)
 - Startup: Lazy singleton `getEnvironment()` validates all vars at import time; fails fast on misconfiguration
 - Runtime: Express 5 + ioredis + Supabase JS client
 - Deployment: Unchanged (Vercel for web, Railway for api); nixpacks now uses nodejs_22 instead of Python 3.11
 - Documentation: CLAUDE.md, README.md updated; Vercel manual root directory setup required post-deployment
-**Time Spent:** ~2 hours (planning, implementation, testing, documentation)
-**Learnings:**
+  **Time Spent:** ~2 hours (planning, implementation, testing, documentation)
+  **Learnings:**
+
 1. **ESM .js Extension Requirement**: TypeScript with `"module": "esnext"` does not rewrite import extensions. Must write `import { foo } from "@/lib/bar.js"` even in `.ts` files. Node.js ESM requires explicit extensions at runtime. Missing extensions cause "Cannot find module" errors.
 2. **tsc-alias is Essential**: `tsc` leaves `@/*` path aliases as-is; `node` fails at startup. Build script must be `tsc && tsc-alias`.
 3. **Railway IPv6 Dual-Stack**: ioredis needs `family: 0` (AF_UNSPEC) to support Railway's internal Redis hostname resolution (IPv6 preferred, falls back to IPv4).
@@ -102,12 +109,14 @@ When starting a new project with this template:
 10. **Error Response Shape Differences**: FastAPI returns `{"detail": "..."}` on validation errors. Express http-errors returns `{"error": "...", "status": ...}`. Frontend `lib/api.ts` must check both fields: `errorData.message || errorData.detail || ...`.
 
 **Files Modified:**
+
 - Deleted: `main.py`, `supabase_utils.py`, `requirements.txt`, Python deployment configs
 - Created: Full Express structure (src/config, src/middleware, src/routes, src/services, src/types)
 - Renamed: `apps/frontend/` → `apps/web/`
 - Updated: CLAUDE.md (Node.js sections, Express style guide, removed Python sections), README.md (tech stack, quickstart), web app (page.tsx, about/page.tsx, metadata.ts, lib/api.ts)
 
 **Next Steps (for projects using this template):**
+
 1. Fill in Supabase credentials in `apps/api/.env`
 2. Regenerate `apps/api/supabase/types.ts` with actual schema: `npx supabase gen types typescript --project-id YOUR_ID > supabase/types.ts`
 3. Set `NEXT_PUBLIC_API_URL` in `apps/web/.env.local`

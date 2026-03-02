@@ -1,5 +1,5 @@
-import cors from "cors";
-import { getCorsOrigins } from "@/config/environment.js";
+import cors from 'cors';
+import { getCorsOrigins } from '@/config/environment.js';
 
 export const corsMiddleware = cors({
   origin: (origin, callback) => {
@@ -7,9 +7,9 @@ export const corsMiddleware = cors({
 
     if (!origin) return callback(null, true); // curl, Postman, server-to-server
 
-    if (allowedOrigins === "*") return callback(null, true);
+    if (allowedOrigins === '*') return callback(null, true);
 
-    const isLocalhost = origin.includes("localhost") || origin.includes("127.0.0.1");
+    const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
     if (isLocalhost) return callback(null, true);
 
     if (Array.isArray(allowedOrigins) && allowedOrigins.includes(origin)) {
@@ -17,11 +17,11 @@ export const corsMiddleware = cors({
     }
 
     console.warn(`🚫 CORS rejected: ${origin}`);
-    callback(new Error("CORS not allowed"));
+    callback(new Error('CORS not allowed'));
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   maxAge: 86400, // Cache preflight for 24h
 });
 

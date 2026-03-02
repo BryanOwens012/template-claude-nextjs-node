@@ -1,7 +1,7 @@
-import "./globals.css";
+import './globals.css';
 
 // Import metadata configuration
-export { metadata, viewport } from "./metadata";
+export { metadata, viewport } from './metadata';
 
 const RootLayout = ({
   children,
@@ -14,11 +14,7 @@ const RootLayout = ({
         {/* Preconnect to API domain for faster requests */}
         {process.env.NEXT_PUBLIC_API_URL && (
           <>
-            <link
-              rel="preconnect"
-              href={process.env.NEXT_PUBLIC_API_URL}
-              crossOrigin="anonymous"
-            />
+            <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_URL} crossOrigin="anonymous" />
             <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_API_URL} />
           </>
         )}
