@@ -20,7 +20,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
   - TypeScript with ESM modules ("type": "module")
   - Zod for runtime validation and type safety
   - ioredis for caching
-  - Supabase JS client (service role key)
+  - Supabase JS client (secret key for server-side operations)
   - Langfuse for LLM observability (optional: prompts, tracing, sessions)
 
 - **Deployment**:
@@ -323,7 +323,7 @@ Each service under `apps/` can be deployed independently with its own configurat
 3. **Set root directory to `apps/api`** in Railway service settings
 4. Railway will detect `railway.json` and `nixpacks.toml` in the service directory
 5. Add Redis plugin (Railway will set `REDIS_URL` automatically)
-6. Set environment variables (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CORS_ORIGINS)
+6. Set environment variables (SUPABASE_URL, SUPABASE_SECRET_KEY, CORS_ORIGINS)
 7. Deploy
 
 **Why per-service configuration:**
@@ -379,6 +379,9 @@ apps/
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:8000
 # Public vars must be prefixed with NEXT_PUBLIC_
+# Optionally, for direct Supabase client-side calls:
+# NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+# NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxxxxxxxxxxxx
 ```
 
 **Backend** (`apps/api/.env`):
@@ -387,10 +390,15 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 PORT=8000
 NODE_ENV=development
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_SECRET_KEY=sb_secret_xxxxxxxxxxxxx
 REDIS_URL=redis://localhost:6379
 CORS_ORIGINS=http://localhost:3000,http://localhost:3001
 ```
+
+**Supabase Keys:**
+
+- `SUPABASE_SECRET_KEY` (starts with `sb_secret_`): Server-side only. Use in Express backend for database operations, auth administration, and other privileged actions. **Keep this secret!**
+- `SUPABASE_PUBLISHABLE_KEY` (starts with `sb_publishable_`): Safe for client-side. Use in browser/frontend if calling Supabase directly (optional).
 
 ### API Integration Pattern
 
@@ -472,6 +480,29 @@ The generated `Database` type is used in `src/services/supabase.ts` for full typ
 import type { Database } from "@/../../supabase/types.js";
 const supabaseClient: SupabaseClient<Database> = ...
 ```
+
+### Supabase API Keys
+
+Supabase uses two types of API keys (new format as of 2025):
+
+**SUPABASE_SECRET_KEY** (`sb_secret_*`):
+
+- Server-side only (Express backend, Edge Functions, etc.)
+- Has elevated permissions for database operations, user management, auth administration
+- **Must be kept secret** — never expose in frontend code or public URLs
+- Used in `src/services/supabase.ts` to initialize the server client
+- Example: `sb_secret_xxxxxxxxxxxxx`
+
+**SUPABASE_PUBLISHABLE_KEY** (`sb_publishable_*`):
+
+- Safe for client-side (browsers, mobile apps)
+- Has limited permissions matching your Row Level Security (RLS) policies
+- Can be exposed in frontend code (use `NEXT_PUBLIC_` prefix in Next.js)
+- Optional — only needed if calling Supabase directly from the browser
+- Example: `sb_publishable_xxxxxxxxxxxxx`
+
+**Migration Note:**
+Supabase is migrating away from legacy JWT-based keys (old `anon` and `service_role` keys). The new key format started as opt-in in Q1 2025, with full enforcement for new projects starting November 1, 2025. Projects created before then can continue using legacy keys until that date.
 
 ### Langfuse Integration (Optional)
 

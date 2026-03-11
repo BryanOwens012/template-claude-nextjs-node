@@ -9,7 +9,7 @@ export const initSupabase = async (): Promise<void> => {
   try {
     const env = getEnvironment();
 
-    supabaseClient = createClient<Database>(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    supabaseClient = createClient<Database>(env.SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,

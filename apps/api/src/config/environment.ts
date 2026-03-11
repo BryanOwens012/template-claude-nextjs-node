@@ -7,7 +7,7 @@ const EnvironmentSchema = z.object({
   PORT: z.coerce.number().default(8000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   SUPABASE_URL: z.string().url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_SECRET_KEY: z.string().min(1),
   REDIS_URL: z.string().url().default('redis://localhost:6379'),
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
   LANGFUSE_PUBLIC_KEY: z.string().optional(),
