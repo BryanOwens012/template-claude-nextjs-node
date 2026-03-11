@@ -101,8 +101,8 @@ A production-ready template for rapidly spinning up full-stack applications with
 2. **Get your credentials**:
    - Go to Project Settings → API
    - Copy your `Project URL` (SUPABASE_URL)
-   - Copy your `anon public` key (SUPABASE_KEY)
-   - Copy your `service_role` key (SUPABASE_SERVICE_ROLE_KEY) - **Keep this secret!**
+   - Copy your `publishable key` (starts with `sb_publishable_`) - for frontend (optional)
+   - Copy your `secret key` (starts with `sb_secret_`) (SUPABASE_SECRET_KEY) - **Keep this secret!**
 
 3. **Add to `.env` file** (see Backend Setup below)
 
@@ -218,8 +218,7 @@ Each service under `apps/` can be deployed independently to Railway.
    - The API is configured with Railway-compatible settings (socket family 0 for IPv6/IPv4 dual-stack)
 6. **Set Supabase environment variables** in Railway dashboard:
    - `SUPABASE_URL`: Your Supabase project URL
-   - `SUPABASE_KEY`: Your Supabase anon/public key
-   - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key (keep secret!)
+   - `SUPABASE_SECRET_KEY`: Your Supabase secret key (starts with `sb_secret_`) (keep secret!)
 7. Set other environment variables (CORS_ORIGINS, etc.)
 8. Deploy
 
@@ -296,8 +295,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 ```bash
 # Supabase (required)
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-anon-public-key-here
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+SUPABASE_SECRET_KEY=sb_secret_xxxxxxxxxxxxx
 
 # Redis (required for caching)
 REDIS_URL=redis://localhost:6379
