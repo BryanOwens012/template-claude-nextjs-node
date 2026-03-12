@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "biomejs.biome",
+        "ReneSaarsoo.sql-formatter-vsc",
+        "foxundermoon.shell-format",
+        "timonwong.shellcheck"
+    ]
+}
