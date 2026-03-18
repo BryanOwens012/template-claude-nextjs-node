@@ -14,8 +14,8 @@
     "lint:check": "npm run lint:js:check && npm run lint:shell:check",
     "lint:js": "biome check --write --no-errors-on-unmatched .",
     "lint:js:check": "biome check --no-errors-on-unmatched .",
-    "lint:shell": "git ls-files '*.sh' | xargs -r shellcheck",
-    "lint:shell:check": "git ls-files '*.sh' | xargs -r shellcheck",
+    "lint:shell": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shellcheck'",
+    "lint:shell:check": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shellcheck'",
     "format": "npm run format:js && npm run format:sql && npm run format:shell && npm run format:md",
     "format:check": "npm run format:js:check && npm run format:sql:check && npm run format:shell:check && npm run format:md:check",
     "format:md": "npx prettier --write \"**/*.md\"",
@@ -24,8 +24,8 @@
     "format:js:check": "biome format .",
     "format:sql": "git ls-files '*.sql' | xargs -I {} npx sql-formatter --fix -l postgresql {}",
     "format:sql:check": "git ls-files '*.sql' | xargs -I {} npx sql-formatter -l postgresql {}",
-    "format:shell": "git ls-files '*.sh' | xargs -r shfmt --write --simplify",
-    "format:shell:check": "git ls-files '*.sh' | xargs -r shfmt --diff",
+    "format:shell": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shfmt --write --simplify'",
+    "format:shell:check": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shfmt --diff'",
     "prepare": "husky"
   },
   "devDependencies": {

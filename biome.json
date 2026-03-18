@@ -6,7 +6,9 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["apps/**/*.{js,jsx,ts,tsx,json,jsonc,jsonl}"],
+    "includes": [
+      "apps/**/*.{js,jsx,ts,tsx,json,jsonc,jsonl}"
+    ],
     "ignoreUnknown": true
   },
   "formatter": {
@@ -42,6 +44,9 @@
       "style": {
         "useConst": "error",
         "noNonNullAssertion": "error"
+      },
+      "complexity": {
+        "useArrowFunction": "error"
       }
     }
   },
@@ -59,7 +64,7 @@
         "**/*.d.{js,ts,tsx}",
         "**/test-*.{js,ts,tsx}",
         "**/*-test.{js,ts,tsx}",
-        "apps/api/supabase/types.ts"
+        "apps/shared/supabase/types.ts"
       ],
       "linter": {
         "rules": {
@@ -68,16 +73,6 @@
           },
           "correctness": {
             "noUnusedVariables": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["apps/web/app/layout.tsx"],
-      "linter": {
-        "rules": {
-          "security": {
-            "noDangerouslySetInnerHtml": "off"
           }
         }
       }

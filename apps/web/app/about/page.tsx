@@ -48,7 +48,7 @@ const AboutPage = () => {
             <h2 className="text-2xl font-semibold mb-3">🔧 Tech Stack</h2>
             <ul className="space-y-2 text-gray-600 dark:text-gray-400">
               <li>
-                • <strong>Frontend:</strong> Next.js 15, React 19, TypeScript, Tailwind CSS, Radix
+                • <strong>Frontend:</strong> Next.js 16, React 19, TypeScript, Tailwind CSS, Radix
                 UI, shadcn/ui
               </li>
               <li>
@@ -76,7 +76,7 @@ const AboutPage = () => {
             ← Back to Home
           </Link>
           <a
-            href="http://localhost:8000/health"
+            href={`${process.env.NEXT_PUBLIC_API_URL}/health`}
             target="_blank"
             rel="noopener noreferrer"
             className="px-6 py-3 border border-gray-300 dark:border-gray-700 hover:border-gray-400 rounded-lg transition-colors"

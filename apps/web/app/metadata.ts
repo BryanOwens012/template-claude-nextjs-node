@@ -46,7 +46,7 @@ export const metadata: Metadata = {
       'A template for rapidly spinning up full-stack applications with Next.js frontend and Node.js backend services.',
     images: [
       {
-        url: '/icon.png',
+        url: '/icon.svg',
         width: 1200,
         height: 630,
         alt: 'Next.js + Node.js Template',
@@ -58,7 +58,7 @@ export const metadata: Metadata = {
     title: 'Next.js + Node.js Template',
     description:
       'A template for rapidly spinning up full-stack applications with Next.js frontend and Node.js backend services.',
-    images: ['/icon.png'],
+    images: ['/icon.svg'],
   },
   robots: {
     index: true,
