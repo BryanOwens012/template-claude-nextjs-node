@@ -123,3 +123,15 @@ When starting a new project with this template:
 4. After Vercel deployment, manually set root directory to `apps/web` in dashboard
 
 <!-- New log entries go below this line -->
+
+## 2026-03-17 - Supabase Folder Relocation to apps/shared
+
+**Type:** Refactor
+**Change:** Moved `apps/api/supabase/` → `apps/shared/supabase/` to share Supabase types and migrations across services.
+**Rationale:** A shared database schema belongs at the monorepo level, not scoped to a single service.
+**Impact:**
+- `apps/api/tsconfig.json`: `rootDir` changed from `"."` to `".."` (apps/) to include the shared folder; `paths` gained `@shared/*`; `include` updated to `../shared/supabase/**/*`
+- Build output path changed from `dist/src/index.js` → `dist/api/src/index.js` (consequence of rootDir change); updated in `package.json`, `railway.json`, `nixpacks.toml`
+- Import in `services/supabase.ts`: `@/../../supabase/types.js` → `@shared/supabase/types.js`
+- Regeneration command: `npx supabase gen types typescript --project-id YOUR_ID > apps/shared/supabase/types.ts`
+- **Note:** Prior log entry (item 9 above) describing `rootDir: "."` and `@/../../supabase/types.js` is superseded by this change.

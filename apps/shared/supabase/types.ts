@@ -1,7 +1,7 @@
 // Regenerate with:
-//   npx supabase gen types typescript --project-id YOUR_PROJECT_ID > supabase/types.ts
+//   npx supabase gen types typescript --project-id YOUR_PROJECT_ID > apps/shared/supabase/types.ts
 // Or with local Supabase:
-//   npx supabase gen types typescript --local > supabase/types.ts
+//   npx supabase gen types typescript --local > apps/shared/supabase/types.ts
 //
 // After regenerating, apply manual overrides for pgvector fields:
 //   Insert/Update embedding fields: number[] | null

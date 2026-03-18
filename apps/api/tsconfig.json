@@ -4,7 +4,7 @@
     "module": "esnext",
     "lib": ["ES2022", "DOM"],
     "outDir": "./dist",
-    "rootDir": ".",
+    "rootDir": "..",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -16,8 +16,8 @@
     "moduleResolution": "node",
     "types": ["node"],
     "baseUrl": "./",
-    "paths": { "@/*": ["src/*"] }
+    "paths": { "@/*": ["src/*"], "@shared/*": ["../shared/*"] }
   },
-  "include": ["src/**/*", "supabase/**/*"],
+  "include": ["src/**/*", "../shared/supabase/**/*"],
   "exclude": ["node_modules", "dist"]
 }

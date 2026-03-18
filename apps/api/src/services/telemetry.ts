@@ -1,11 +1,13 @@
 import { LangfuseSpanProcessor } from '@langfuse/otel';
 import { NodeSDK } from '@opentelemetry/sdk-node';
+import { getEnvironment } from '@/config/environment.js';
 
 let sdk: NodeSDK | null = null;
 
 export const initTelemetry = () => {
-  const publicKey = process.env.LANGFUSE_PUBLIC_KEY;
-  const secretKey = process.env.LANGFUSE_SECRET_KEY;
+  const env = getEnvironment();
+  const publicKey = env.LANGFUSE_PUBLIC_KEY;
+  const secretKey = env.LANGFUSE_SECRET_KEY;
 
   if (!publicKey || !secretKey) {
     console.warn('⚠️  Langfuse OTel tracing disabled (keys not set)');

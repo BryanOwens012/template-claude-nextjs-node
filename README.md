@@ -49,26 +49,27 @@ A production-ready template for rapidly spinning up full-stack applications with
 │   │   ├── lib/             # Utilities and helpers
 │   │   ├── package.json
 │   │   └── .env.example
-│   └── api/                  # Express service
-│       ├── src/
-│       │   ├── index.ts              # Express app + server
-│       │   ├── config/
-│       │   │   └── environment.ts    # Zod env validation
-│       │   ├── middleware/
-│       │   │   ├── cors.ts           # CORS configuration
-│       │   │   └── errorHandler.ts   # Error handling
-│       │   ├── routes/               # API route handlers
-│       │   ├── services/             # Redis, Supabase clients
-│       │   └── types/                # Zod schemas & types
-│       ├── supabase/
-│       │   ├── types.ts              # Generated Supabase types
-│       │   └── migrations/
-│       ├── package.json
-│       ├── tsconfig.json
-│       ├── railway.json              # Railway deployment config
-│       ├── .railwayignore            # Railway ignore patterns
-│       ├── nixpacks.toml             # Nixpacks build config
-│       └── .env.example
+│   ├── api/                  # Express service
+│   │   ├── src/
+│   │   │   ├── index.ts              # Express app + server
+│   │   │   ├── config/
+│   │   │   │   └── environment.ts    # Zod env validation
+│   │   │   ├── middleware/
+│   │   │   │   ├── cors.ts           # CORS configuration
+│   │   │   │   └── errorHandler.ts   # Error handling
+│   │   │   ├── routes/               # API route handlers
+│   │   │   ├── services/             # Redis, Supabase clients
+│   │   │   └── types/                # Zod schemas & types
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   ├── railway.json              # Railway deployment config
+│   │   ├── .railwayignore            # Railway ignore patterns
+│   │   ├── nixpacks.toml             # Nixpacks build config
+│   │   └── .env.example
+│   └── shared/               # Shared assets across services
+│       └── supabase/
+│           ├── types.ts              # Generated Supabase types
+│           └── migrations/
 ├── docs/
 │   └── AGENTS_APPENDLOG.md   # Decision log (append-only)
 ├── scripts/
@@ -447,7 +448,7 @@ If using Supabase migrations directly:
 
 ```bash
 # Regenerate TypeScript types after schema changes
-npx supabase gen types typescript --project-id YOUR_ID > supabase/types.ts
+npx supabase gen types typescript --project-id YOUR_ID > apps/shared/supabase/types.ts
 ```
 
 ## Troubleshooting

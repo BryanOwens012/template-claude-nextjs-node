@@ -42,13 +42,17 @@ router.post('/cache/:key', async (req, res, next) => {
   const { key } = req.params;
   const { value, ttl = '300' } = req.body as { value?: string; ttl?: string };
   if (!value) return next(createError(400, "Request body must include a 'value' field"));
+  const parsedTtl = parseInt(ttl, 10);
+  if (isNaN(parsedTtl) || parsedTtl <= 0) {
+    return next(createError(400, 'TTL must be a positive integer'));
+  }
   try {
     const redis = getRedisClient();
     if (!redis) {
       return next(createError(503, 'Redis client not available'));
     }
-    await redis.set(key, value, 'EX', parseInt(ttl, 10));
-    res.status(201).json({ action: 'set', key, value, ttl: parseInt(ttl, 10), success: true });
+    await redis.set(key, value, 'EX', parsedTtl);
+    res.status(201).json({ action: 'set', key, value, ttl: parsedTtl, success: true });
   } catch (error) {
     next(
       createError(

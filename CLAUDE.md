@@ -9,7 +9,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 ### Tech Stack
 
 - **Frontend**:
-  - Next.js 15+ (App Router, React Server Components)
+  - Next.js 16+ (App Router, React Server Components)
   - React 19
   - TypeScript 5+
   - Tailwind CSS
@@ -469,7 +469,7 @@ CORS is configured in `src/middleware/cors.ts`. The middleware:
 Generate TypeScript types from your Supabase schema:
 
 ```bash
-npx supabase gen types typescript --project-id YOUR_PROJECT_ID > apps/api/supabase/types.ts
+npx supabase gen types typescript --project-id YOUR_PROJECT_ID > apps/shared/supabase/types.ts
 ```
 
 After regenerating, update pgvector fields manually (e.g., embedding fields to `number[] | null`).
@@ -477,7 +477,7 @@ After regenerating, update pgvector fields manually (e.g., embedding fields to `
 The generated `Database` type is used in `src/services/supabase.ts` for full type safety:
 
 ```typescript
-import type { Database } from "@/../../supabase/types.js";
+import type { Database } from "@shared/supabase/types.js";
 const supabaseClient: SupabaseClient<Database> = ...
 ```
 
