@@ -1,42 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import api, { ApiError } from '@/lib/api';
-
-interface HealthResponse {
-  status: string;
-  redis: string;
-  supabase: string;
-  langfuse?: string;
-  message: string;
-}
+import { useQuery } from '@tanstack/react-query';
+import { useTRPC } from '@/lib/trpc';
 
 const ApiStatus = () => {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const checkApiHealth = async () => {
-      try {
-        // Using the centralized API utility from lib/
-        const data = await api.get<HealthResponse>('/health');
-        setHealth(data);
-        setError(null);
-      } catch (err) {
-        if (err instanceof ApiError) {
-          setError(`API error: ${err.message} (Status: ${err.status})`);
-        } else {
-          setError(err instanceof Error ? err.message : 'Failed to connect to API');
-        }
-        setHealth(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkApiHealth();
-  }, []);
+  const trpc = useTRPC();
+  const { data: health, isLoading: loading, error } = useQuery(trpc.health.check.queryOptions());
 
   const getStatusColor = (status: string) => {
     if (status === 'connected' || status === 'healthy' || status === 'initialized') {
@@ -72,7 +41,7 @@ const ApiStatus = () => {
       <div className="w-full max-w-md p-6 border border-red-200 dark:border-red-900 rounded-lg bg-red-50 dark:bg-red-950">
         <h3 className="text-lg font-semibold mb-3 text-red-900 dark:text-red-100">API Status</h3>
         <p className="text-sm text-red-700 dark:text-red-300">✗ Unable to connect to API</p>
-        <p className="text-xs text-red-600 dark:text-red-400 mt-2">{error}</p>
+        <p className="text-xs text-red-600 dark:text-red-400 mt-2">{error.message}</p>
         <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
           Make sure the API is running at{' '}
           <code className="bg-red-100 dark:bg-red-900 px-1 rounded">

@@ -1,4 +1,5 @@
 import './globals.css';
+import { Providers } from '@/components/providers/TRPCProvider';
 
 // Import metadata configuration
 export { metadata, viewport } from './metadata';
@@ -19,7 +20,9 @@ const RootLayout = ({
           </>
         )}
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 };

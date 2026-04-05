@@ -1,16 +1,14 @@
+import * as trpcExpress from '@trpc/server/adapters/express';
 import express from 'express';
 import { getEnvironment } from '@/config/environment.js';
 import { corsMiddleware } from '@/middleware/cors.js';
 import { errorHandler } from '@/middleware/errorHandler.js';
-import healthRouter from '@/routes/health.js';
-import indexRouter from '@/routes/index.js';
-import langfuseRouter from '@/routes/langfuse.js';
-import redisRouter from '@/routes/redis.js';
-import supabaseRouter from '@/routes/supabase.js';
 import { closeLangfuse, initLangfuse } from '@/services/langfuse.js';
 import { closeRedis, initRedis } from '@/services/redis.js';
 import { initSupabase } from '@/services/supabase.js';
 import { initTelemetry, shutdownTelemetry } from '@/services/telemetry.js';
+import { createContext } from '@/trpc/init.js';
+import { appRouter } from '@/trpc/router.js';
 
 const app = express();
 const env = getEnvironment(); // Validates env vars; exits on failure
@@ -20,15 +18,32 @@ app.set('trust proxy', 1);
 
 // Middleware
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(corsMiddleware);
 
-// Routes — each router uses router.get("/") internally; path prefix set here
-app.use('/', indexRouter);
-app.use('/health', healthRouter);
-app.use('/redis', redisRouter);
-app.use('/supabase', supabaseRouter);
-app.use('/langfuse', langfuseRouter);
+// Minimal health probe for Railway / infrastructure monitoring
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// CSRF protection: reject tRPC requests missing the custom header.
+// Browsers cannot send custom headers from form submissions or simple requests
+// without triggering a CORS preflight, which cross-site attackers cannot pass.
+app.use('/trpc', (req, res, next) => {
+  if (!req.headers['x-trpc-source']) {
+    res.status(403).json({ error: 'Missing x-trpc-source header' });
+    return;
+  }
+  next();
+});
+
+// tRPC handler — all API procedures
+app.use(
+  '/trpc',
+  trpcExpress.createExpressMiddleware({
+    router: appRouter,
+    createContext,
+  }),
+);
 
 // 404 handler (after all routes)
 app.use((req, res) => {

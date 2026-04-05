@@ -1,10 +1,10 @@
 {
-  "name": "boola-bot",
+  "name": "template-nextjs-node",
   "version": "1.0.0",
-  "description": "BoolaBot monorepo - AI assistant for Yale Class of 2021",
+  "description": "Next.js + Node.js template monorepo with tRPC v11 + TanStack Query",
   "private": true,
   "scripts": {
-    "typecheck": "npm run typecheck:api && npm run typecheck:web",
+    "typecheck": "npm run build:api && npm run typecheck:web",
     "typecheck:api": "cd apps/api && npx tsc --noEmit",
     "typecheck:web": "cd apps/web && npx tsc --noEmit",
     "build": "npm run build:api && npm run build:web",
@@ -28,9 +28,16 @@
     "format:shell:check": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shfmt --diff'",
     "prepare": "husky"
   },
+  "lint-staged": {
+    "*.{js,ts,jsx,tsx,json,css}": ["biome check --write --no-errors-on-unmatched", "biome format --write --no-errors-on-unmatched"],
+    "*.md": "prettier --write",
+    "*.sql": "npx sql-formatter --fix -l postgresql",
+    "*.sh": ["shfmt --write --simplify", "shellcheck"]
+  },
   "devDependencies": {
     "@biomejs/biome": "2.4.4",
     "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.8.1",
     "sql-formatter": "15.7.2"
   }

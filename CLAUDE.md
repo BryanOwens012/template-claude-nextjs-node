@@ -14,10 +14,12 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
   - TypeScript 5+
   - Tailwind CSS
   - Radix UI, shadcn/ui
+  - TanStack Query v5
 
 - **Backend**:
   - Express 5 (Node.js 22+)
   - TypeScript with ESM modules ("type": "module")
+  - tRPC v11 for end-to-end type-safe API procedures
   - Zod for runtime validation and type safety
   - ioredis for caching
   - Supabase JS client (secret key for server-side operations)
@@ -65,9 +67,9 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
   - Symptom of missing extension: `Error: Cannot find module` at startup
 - Define **Zod schemas** for request/response validation, not types (types are inferred from schemas)
 - Use `getEnvironment()` from `config/environment.ts` for environment variables (never use `process.env` directly)
-- Use `http-errors` package for HTTP errors: `createError(400, "Bad request")`
-- Use **async route handlers** with `next(error)` for error propagation
-- Handle errors in try/catch and pass to `next()` for central error handler
+- Define **tRPC procedures** using `publicProcedure.input(Schema).output(Schema).query(...)` or `.mutation(...)`
+- Use **TRPCError** for procedure errors: `throw new TRPCError({ code: 'BAD_REQUEST', message: '...' })`
+- Return data directly from procedures — tRPC handles serialization (no `res.json()`)
 
 ### Node.js Dependency Management
 
@@ -127,10 +129,10 @@ git commit -m "Add <new-package> dependency"
 
 ### API Development
 
-- Create routers for logical groupings of endpoints
+- Create tRPC sub-routers in `src/trpc/routers/` for logical groupings of procedures
 - Use consistent naming conventions (RESTful when appropriate)
 - Version APIs when making breaking changes
-- Include health check endpoint at `/health`
+- Include health check procedure (`health.check` query) and minimal `/health` Express endpoint for infrastructure probes
 - Add comprehensive error handling
 
 ### Code Organization
@@ -141,10 +143,13 @@ git commit -m "Add <new-package> dependency"
 apps/web/
 ├── app/                  # Next.js app router
 │   ├── page.tsx         # Home page
-│   ├── layout.tsx       # Root layout
+│   ├── layout.tsx       # Root layout (wraps children with TRPCProvider)
 │   └── api/             # API routes (if needed)
 ├── components/           # React components
+│   └── providers/       # Context providers
+│       └── TRPCProvider.tsx  # tRPC + TanStack Query provider
 ├── lib/                 # Utilities and helpers
+│   └── trpc.ts          # tRPC client context (useTRPC hook)
 └── types/               # TypeScript type definitions
 ```
 
@@ -153,24 +158,30 @@ apps/web/
 ```
 apps/api/
 ├── package.json         # Node.js dependencies and scripts
-├── tsconfig.json        # TypeScript configuration (rootDir: ".")
+├── tsconfig.json        # TypeScript configuration (rootDir: "..")
 ├── src/
-│   ├── index.ts         # Express app + route mounting + server start
+│   ├── index.ts         # Express app + tRPC mount + server start
 │   ├── config/
 │   │   └── environment.ts        # Zod env validation, lazy singleton, getCorsOrigins()
 │   ├── middleware/
 │   │   ├── cors.ts              # CORS configuration with localhost passthrough
 │   │   └── errorHandler.ts      # Centralized error handling (400s, ZodError, 500)
-│   ├── routes/
-│   │   ├── index.ts             # GET / — root API info handler
-│   │   ├── health.ts            # GET / (mounted at /health)
-│   │   ├── redis.ts             # GET /test, POST/GET/DELETE /cache/:key
-│   │   └── supabase.ts          # GET / (mounted at /supabase/test)
+│   ├── trpc/
+│   │   ├── init.ts              # tRPC context (req/res), createRouter, publicProcedure
+│   │   ├── router.ts            # Root router merging sub-routers, exports AppRouter type
+│   │   └── routers/
+│   │       ├── health.ts        # health.check query
+│   │       ├── info.ts          # info.get query (API name/version/status)
+│   │       ├── langfuse.ts      # langfuse.test, langfuse.getPrompt, langfuse.traceExample
+│   │       ├── redis.ts         # redis.test, redis.cacheSet, redis.cacheGet, redis.cacheDelete
+│   │       └── supabase.ts      # supabase.test query
 │   ├── services/
+│   │   ├── langfuse.ts          # initLangfuse/getLangfuse/isLangfuseAvailable/getPrompt
 │   │   ├── redis.ts             # initRedis/closeRedis/getRedisClient/isRedisAvailable
-│   │   └── supabase.ts          # initSupabase/getSupabaseClient/isSupabaseAvailable
+│   │   ├── supabase.ts          # initSupabase/getSupabaseClient/isSupabaseAvailable
+│   │   └── telemetry.ts         # OpenTelemetry SDK with LangfuseSpanProcessor
 │   └── types/
-│       └── index.ts             # Zod schemas + z.infer<> types
+│       └── index.ts             # Zod schemas + z.infer<> types (input + output)
 ├── supabase/
 │   ├── types.ts                 # Regenerate with supabase CLI
 │   └── migrations/
@@ -249,6 +260,8 @@ vercel.json            # Vercel deployment config for web app (simplified)
 - ❌ Don't mix Zod validation with TypeScript-only types
 - ❌ Don't ignore Zod validation errors
 - ❌ Don't forget to close database/Redis connections on shutdown
+- ❌ Don't use `http-errors` in tRPC procedures — use `TRPCError` with the correct code
+- ❌ Don't forget to rebuild the API (`npm run build:api`) after changing tRPC routers — the web typecheck depends on emitted declarations
 
 ## Decision Logging & Meta-Documentation
 
@@ -356,7 +369,7 @@ apps/
 ├── web/              # Next.js frontend
 │   ├── package.json
 │   └── ...
-├── api/              # Express REST API
+├── api/              # Express + tRPC API
 │   ├── railway.json
 │   ├── package.json
 │   └── ...
@@ -402,24 +415,29 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:3001
 
 ### API Integration Pattern
 
-**Frontend calling Backend:**
+**Frontend (tRPC query hook):**
 
 ```typescript
-const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/endpoint`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(data),
-});
-const result = await response.json();
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import { useTRPC } from '@/lib/trpc';
+
+const MyComponent = () => {
+  const trpc = useTRPC();
+  const { data, isLoading, error } = useQuery(trpc.health.check.queryOptions());
+
+  if (isLoading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+  return <p>Status: {data?.status}</p>;
+};
 ```
 
-**Backend API route:**
+**Backend (tRPC procedure):**
 
 ```typescript
-import { Router } from "express";
 import { z } from "zod";
-
-const router = Router();
+import { createRouter, publicProcedure } from "@/trpc/init.js";
 
 const UserRequestSchema = z.object({
   name: z.string(),
@@ -432,18 +450,14 @@ const UserResponseSchema = z.object({
   email: z.string().email(),
 });
 
-router.post("/users", async (req, res, next) => {
-  try {
-    const user = UserRequestSchema.parse(req.body);
-    const result = { id: 1, ...user };
-    const validated = UserResponseSchema.parse(result);
-    res.json(validated);
-  } catch (error) {
-    next(error);
-  }
+export const userRouter = createRouter({
+  create: publicProcedure
+    .input(UserRequestSchema)
+    .output(UserResponseSchema)
+    .mutation(({ input }) => {
+      return { id: 1, ...input };
+    }),
 });
-
-export default router;
 ```
 
 ### CORS Configuration
@@ -537,7 +551,7 @@ The template uses [Vercel AI SDK](https://sdk.vercel.ai/) (`ai` + `@ai-sdk/anthr
 
 Tracing flows through OpenTelemetry automatically via `experimental_telemetry` — no manual span creation needed for token counts or model metadata.
 
-**Full pattern with tool call (from `src/routes/langfuse.ts`):**
+**Full pattern with tool call (from `src/trpc/routers/langfuse.ts`):**
 
 ```typescript
 import { generateText, tool, stepCountIs } from "ai";
