@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# Pre-commit hook: Check code quality before committing
-# Order: type checking → building → formatting → linting
-# This ensures errors are caught early before any auto-fixes are applied
+# Pre-commit hook: typecheck -> auto-fix staged files
+# 1. build:api emits declarations needed by web typecheck
+# 2. lint-staged runs formatters/linters only on staged files and re-stages them
 
-npm run typecheck && npm run build && npm run format && npm run lint
+npm run build:api && npm run typecheck:web && npx lint-staged

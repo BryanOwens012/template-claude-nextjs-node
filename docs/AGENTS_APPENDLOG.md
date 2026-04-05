@@ -75,14 +75,14 @@ When starting a new project with this template:
 
 **Type:** Decision | Implementation
 **Change:** Converted backend from Python FastAPI to Node.js Express 5 with TypeScript, unified entire stack to TypeScript
-**Context:** Template alignment with boola-bot monorepo structure; standardizing on unified TypeScript across frontend and backend
+**Context:** Template alignment with production monorepo structure; standardizing on unified TypeScript across frontend and backend
 **Rationale:**
 
 - **Unified Stack**: Single language (TypeScript) for entire application reduces context switching and enables code sharing (types, utilities)
 - **Developer Velocity**: Consistent tooling, build process, and deployment pattern across frontend and backend
 - **Type Safety**: Zod runtime validation + TypeScript compile-time types provide better guarantees than Python Pydantic
 - **Modern JavaScript**: ES2022+ features, native async/await, modules-first approach
-- **boola-bot Alignment**: Exact architectural parity with proven production pattern
+- **Production Alignment**: Exact architectural parity with proven production pattern
   **Alternatives Considered:**
 - Keep FastAPI: Rejected because sacrifices unified stack benefits, adds Python maintenance overhead
 - Use Deno: Rejected because less ecosystem maturity and Railway support than Node.js
@@ -130,6 +130,7 @@ When starting a new project with this template:
 **Change:** Moved `apps/api/supabase/` → `apps/shared/supabase/` to share Supabase types and migrations across services.
 **Rationale:** A shared database schema belongs at the monorepo level, not scoped to a single service.
 **Impact:**
+
 - `apps/api/tsconfig.json`: `rootDir` changed from `"."` to `".."` (apps/) to include the shared folder; `paths` gained `@shared/*`; `include` updated to `../shared/supabase/**/*`
 - Build output path changed from `dist/src/index.js` → `dist/api/src/index.js` (consequence of rootDir change); updated in `package.json`, `railway.json`, `nixpacks.toml`
 - Import in `services/supabase.ts`: `@/../../supabase/types.js` → `@shared/supabase/types.js`

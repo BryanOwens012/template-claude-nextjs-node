@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-// Matches the HealthResponse interface in apps/web/components/ApiStatus.tsx exactly
 export const HealthResponseSchema = z.object({
   status: z.enum(['healthy', 'degraded']),
   redis: z.string(),
@@ -35,3 +34,29 @@ export const SupabaseTestResponseSchema = z.object({
   url: z.string().optional(),
 });
 export type SupabaseTestResponse = z.infer<typeof SupabaseTestResponseSchema>;
+
+// --- tRPC input schemas ---
+
+export const CacheSetInputSchema = z.object({
+  key: z.string().min(1),
+  value: z.string().min(1),
+  ttl: z.number().int().positive().default(300),
+});
+export type CacheSetInput = z.infer<typeof CacheSetInputSchema>;
+
+export const CacheKeyInputSchema = z.object({
+  key: z.string().min(1),
+});
+export type CacheKeyInput = z.infer<typeof CacheKeyInputSchema>;
+
+export const PromptInputSchema = z.object({
+  name: z.string().min(1),
+  variables: z.record(z.string(), z.string()).optional().default({}),
+});
+export type PromptInput = z.infer<typeof PromptInputSchema>;
+
+export const TraceExampleInputSchema = z.object({
+  prompt: z.string().optional().default("What's the weather like in San Francisco?"),
+  sessionId: z.string().optional(),
+});
+export type TraceExampleInput = z.infer<typeof TraceExampleInputSchema>;

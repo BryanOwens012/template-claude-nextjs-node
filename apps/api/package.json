@@ -16,6 +16,7 @@
     "@langfuse/tracing": "^5.0.1",
     "@opentelemetry/sdk-node": "^0.213.0",
     "@supabase/supabase-js": "^2.99.2",
+    "@trpc/server": "^11.16.0",
     "ai": "^6.0.116",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",

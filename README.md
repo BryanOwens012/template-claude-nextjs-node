@@ -1,11 +1,12 @@
 # Next.js + Node.js Template
 
-A production-ready template for rapidly spinning up full-stack applications with Next.js frontend and Express/Node.js backend services.
+A template for rapidly spinning up full-stack applications with Next.js frontend and Express/Node.js backend services.
 
 ## Features
 
 - **Modern Frontend**: Next.js 15+ with React 19, TypeScript, Tailwind CSS, Radix UI, shadcn/ui
-- **Robust Backend**: Express 5 with Node.js 22+, TypeScript, Zod validation, and type safety
+- **Robust Backend**: Express 5 + tRPC v11 with Node.js 22+, TypeScript, end-to-end type safety
+- **End-to-End Type Safety**: tRPC v11 + TanStack Query v5 for type-safe API calls with automatic caching
 - **Supabase Integration**: PostgreSQL database with built-in auth, realtime, and storage
 - **Redis Integration**: Built-in caching with Railway-optimized connection settings
 - **Vercel AI SDK**: First-class LLM integration with Claude Haiku, streaming, and tool calls
@@ -24,6 +25,7 @@ A production-ready template for rapidly spinning up full-stack applications with
 - **Language**: TypeScript 5+
 - **Styling**: Tailwind CSS
 - **UI Components**: Radix UI, shadcn/ui
+- **Data Fetching**: TanStack Query v5 (via tRPC)
 - **Deployment**: Vercel
 
 ### Backend
@@ -31,7 +33,7 @@ A production-ready template for rapidly spinning up full-stack applications with
 - **Framework**: Express 5
 - **Runtime**: Node.js 22+
 - **Language**: TypeScript with ESM modules
-- **Validation**: Zod (schemas + inferred types)
+- **API Layer**: tRPC v11 (type-safe procedures) + Zod (schemas + inferred types)
 - **Database**: Supabase (PostgreSQL with auth, realtime, storage)
 - **Caching**: Redis (ioredis with Railway-optimized settings)
 - **AI**: Vercel AI SDK (`ai` + `@ai-sdk/anthropic`) — `generateText`, `streamText`, tool calls
@@ -46,19 +48,23 @@ A production-ready template for rapidly spinning up full-stack applications with
 │   ├── web/                  # Next.js application
 │   │   ├── app/             # Next.js app router
 │   │   ├── components/      # React components (Radix UI, shadcn/ui)
-│   │   ├── lib/             # Utilities and helpers
+│   │   │   └── providers/   # TRPCProvider + QueryClient
+│   │   ├── lib/             # Utilities (tRPC client context)
 │   │   ├── package.json
 │   │   └── .env.example
-│   ├── api/                  # Express service
+│   ├── api/                  # Express + tRPC API service
 │   │   ├── src/
-│   │   │   ├── index.ts              # Express app + server
+│   │   │   ├── index.ts              # Express app + tRPC mount + server start
 │   │   │   ├── config/
 │   │   │   │   └── environment.ts    # Zod env validation
 │   │   │   ├── middleware/
 │   │   │   │   ├── cors.ts           # CORS configuration
 │   │   │   │   └── errorHandler.ts   # Error handling
-│   │   │   ├── routes/               # API route handlers
-│   │   │   ├── services/             # Redis, Supabase clients
+│   │   │   ├── trpc/                 # tRPC procedures
+│   │   │   │   ├── init.ts           # Context, createRouter, publicProcedure
+│   │   │   │   ├── router.ts         # Root router, exports AppRouter type
+│   │   │   │   └── routers/          # Sub-routers (health, redis, etc.)
+│   │   │   ├── services/             # Redis, Supabase, Langfuse, telemetry clients
 │   │   │   └── types/                # Zod schemas & types
 │   │   ├── package.json
 │   │   ├── tsconfig.json
@@ -180,14 +186,17 @@ The test script will check:
 **Alternative: Manual testing with curl**
 
 ```bash
+# Infrastructure health probe
+curl http://localhost:8000/health
+
+# Detailed health check (via tRPC)
+curl http://localhost:8000/trpc/health.check
+
 # Test Redis
-curl http://localhost:8000/redis/test
+curl http://localhost:8000/trpc/redis.test
 
 # Test Supabase
-curl http://localhost:8000/supabase/test
-
-# Check overall health
-curl http://localhost:8000/health
+curl http://localhost:8000/trpc/supabase.test
 ```
 
 ## Deployment
@@ -266,7 +275,7 @@ apps/
 ├── web/              # Next.js frontend
 │   ├── package.json
 │   └── ...
-├── api/              # Express REST API service
+├── api/              # Express + tRPC API service
 │   ├── railway.json
 │   ├── package.json
 │   └── ...
@@ -343,10 +352,9 @@ This template includes automated code quality checks powered by **Biome**, **Pre
 **Pre-commit Hook** — Runs automatically before each commit:
 
 ```bash
-npm run typecheck    # Type checking for frontend and backend
-npm run build        # Build verification
-npm run format       # Auto-format code (JS/TS, SQL, shell, markdown)
-npm run lint         # Lint checks (JS/TS, shell scripts)
+npm run build:api    # Build API (emits declarations needed by web typecheck)
+npm run typecheck:web # Type check frontend against API declarations
+npx lint-staged      # Auto-format and lint only staged files
 ```
 
 If any step fails, the commit is blocked. Fix issues and try again.
@@ -392,7 +400,8 @@ The pre-commit hook ensures high code quality by catching issues early before th
 - Use ESM imports with explicit `.js` extensions in TypeScript source files
 - Use `getEnvironment()` for env vars (never `process.env` directly)
 - Define Zod schemas for request/response shapes; infer types with `z.infer<>`
-- Use `next(error)` to propagate errors to the central error handler
+- Define tRPC procedures using `publicProcedure.input(Schema).query(...)` or `.mutation(...)`
+- Use `TRPCError` for procedure errors (not `http-errors`)
 
 ### Testing
 
@@ -414,19 +423,21 @@ npm run type-check
 
 The Express backend provides the following endpoints:
 
-- Health check: `http://localhost:8000/health`
-- Redis test: `http://localhost:8000/redis/test`
-- Supabase test: `http://localhost:8000/supabase/test`
-- Langfuse test: `http://localhost:8000/langfuse/test`
-- AI + trace demo: `POST http://localhost:8000/langfuse/trace-example` (requires `ANTHROPIC_API_KEY`)
+- Infrastructure probe: `http://localhost:8000/health` (minimal, for Railway/uptime checks)
+- Health check: `http://localhost:8000/trpc/health.check` (detailed service status via tRPC)
+- Redis test: `http://localhost:8000/trpc/redis.test`
+- Supabase test: `http://localhost:8000/trpc/supabase.test`
+- Langfuse test: `http://localhost:8000/trpc/langfuse.test`
+- API info: `http://localhost:8000/trpc/info.get`
 
 ## Common Tasks
 
 ### Adding a New API Endpoint
 
-1. Create a new router file in `apps/api/src/routes/`
-2. Define Zod schemas in `apps/api/src/types/index.ts`
-3. Mount it in `apps/api/src/index.ts` with `app.use("/prefix", router)`
+1. Create a new router file in `apps/api/src/trpc/routers/`
+2. Define Zod input/output schemas in `apps/api/src/types/index.ts`
+3. Add the router to `apps/api/src/trpc/router.ts`
+4. Run `npm run build:api` to emit updated type declarations for the frontend
 
 ### Adding a New Frontend Page
 
