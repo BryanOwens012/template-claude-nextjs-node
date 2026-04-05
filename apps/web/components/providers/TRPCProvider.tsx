@@ -33,6 +33,9 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
       links: [
         httpBatchLink({
           url: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/trpc`,
+          // Custom header forces CORS preflight, blocking cross-site form attacks.
+          // Value is arbitrary — used for debugging which client made the request.
+          headers: () => ({ 'x-trpc-source': 'nextjs-client' }),
         }),
       ],
     }),

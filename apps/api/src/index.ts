@@ -25,6 +25,17 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+// CSRF protection: reject tRPC requests missing the custom header.
+// Browsers cannot send custom headers from form submissions or simple requests
+// without triggering a CORS preflight, which cross-site attackers cannot pass.
+app.use('/trpc', (req, res, next) => {
+  if (!req.headers['x-trpc-source']) {
+    res.status(403).json({ error: 'Missing x-trpc-source header' });
+    return;
+  }
+  next();
+});
+
 // tRPC handler — all API procedures
 app.use(
   '/trpc',
