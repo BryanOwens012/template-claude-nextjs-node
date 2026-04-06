@@ -6,7 +6,7 @@ export const HealthResponseSchema = z.object({
   supabase: z.string(),
   langfuse: z.string().optional(),
   message: z.string(),
-  timestamp: z.string().datetime(),
+  timestamp: z.iso.datetime(),
 });
 export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 
@@ -15,7 +15,7 @@ export const ApiInfoSchema = z.object({
   version: z.string(),
   description: z.string(),
   status: z.enum(['operational', 'degraded']),
-  timestamp: z.string().datetime(),
+  timestamp: z.iso.datetime(),
 });
 export type ApiInfo = z.infer<typeof ApiInfoSchema>;
 
