@@ -68,8 +68,14 @@ export const GET = async (request: NextRequest) => {
         );
       }
 
-      // Check if user's email is invited
-      if (data.user?.email) {
+      // Only check invitation for NEW users (first OAuth sign-in creates the account).
+      // Returning users who already exist should not be blocked — they were already
+      // invited when they first signed up. This also prevents password reset flows
+      // from accidentally deleting existing users.
+      const isNewUser =
+        data.user?.created_at && Date.now() - new Date(data.user.created_at).getTime() < 60_000;
+
+      if (isNewUser && data.user?.email) {
         const invited = await isEmailInvited(data.user.email);
 
         if (!invited) {
