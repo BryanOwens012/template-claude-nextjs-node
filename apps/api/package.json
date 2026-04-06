@@ -24,6 +24,7 @@
     "http-errors": "^2.0.1",
     "ioredis": "^5.10.0",
     "langfuse": "^3.38.6",
+    "posthog-node": "^5.28.11",
     "zod": "^4.3.6"
   },
   "devDependencies": {

@@ -1,5 +1,6 @@
 'use client';
 
+import posthog from 'posthog-js';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -11,6 +12,8 @@ const LogoutButton = () => {
     try {
       const supabase = createClient();
       await supabase.auth.signOut();
+      posthog.capture('user_logged_out');
+      posthog.reset();
       window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);

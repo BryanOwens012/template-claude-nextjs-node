@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import posthog from 'posthog-js';
 import { Suspense, useState } from 'react';
 import { isEmailInvited } from '@/lib/supabase/check-invite';
 import { createClient } from '@/lib/supabase/client';
@@ -72,7 +73,7 @@ const SignupContent = () => {
 
       setMessage('Creating your account...');
 
-      const { error: signupError } = await supabase.auth.signUp({
+      const { error: signupError, data } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -89,6 +90,10 @@ const SignupContent = () => {
         return;
       }
 
+      if (data.user) {
+        posthog.identify(data.user.id, { email, name: `${firstName} ${lastName}` });
+        posthog.capture('user_signed_up', { method: 'email' });
+      }
       setMessage('Account created! Logging in...');
       setFirstName('');
       setLastName('');
@@ -302,7 +307,7 @@ const SignupContent = () => {
 
 const SignupPage = () => {
   return (
-    <Suspense>
+    <Suspense fallback={<div>Loading...</div>}>
       <SignupContent />
     </Suspense>
   );
