@@ -73,7 +73,7 @@ const SignupContent = () => {
 
       setMessage('Creating your account...');
 
-      const { error: signupError } = await supabase.auth.signUp({
+      const { error: signupError, data } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -90,7 +90,10 @@ const SignupContent = () => {
         return;
       }
 
-      posthog.capture('user_signed_up', { method: 'email' });
+      if (data.user) {
+        posthog.identify(data.user.id, { email, name: `${firstName} ${lastName}` });
+        posthog.capture('user_signed_up', { method: 'email' });
+      }
       setMessage('Account created! Logging in...');
       setFirstName('');
       setLastName('');
@@ -304,7 +307,7 @@ const SignupContent = () => {
 
 const SignupPage = () => {
   return (
-    <Suspense>
+    <Suspense fallback={<div>Loading...</div>}>
       <SignupContent />
     </Suspense>
   );

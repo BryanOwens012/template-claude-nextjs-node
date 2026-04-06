@@ -12,6 +12,7 @@ const LogoutButton = () => {
     try {
       const supabase = createClient();
       await supabase.auth.signOut();
+      posthog.capture('user_logged_out');
       posthog.reset();
       window.location.href = '/';
     } catch (error) {

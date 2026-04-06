@@ -35,7 +35,7 @@ const LoginContent = () => {
     setLoading(true);
 
     try {
-      const { error: loginError } = await supabase.auth.signInWithPassword({
+      const { error: loginError, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -45,7 +45,10 @@ const LoginContent = () => {
         return;
       }
 
-      posthog.capture('user_logged_in', { method: 'email' });
+      if (data.user) {
+        posthog.identify(data.user.id, { email });
+        posthog.capture('user_logged_in', { method: 'email' });
+      }
       router.push(redirectUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');

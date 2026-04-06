@@ -223,13 +223,14 @@ If PostHog is not configured, all analytics calls silently no-op — no errors, 
 
 The template captures these events out of the box:
 
-| Event            | Location         | Properties                 |
-| ---------------- | ---------------- | -------------------------- |
-| `user_logged_in` | Login page       | `method: email`            |
-| `user_logged_in` | OAuth callback   | `method: google` / `azure` |
-| `user_signed_up` | Signup page      | `method: email`            |
-| PostHog identify | Dashboard layout | `userId`, `email`          |
-| PostHog reset    | Logout button    | Clears identity            |
+| Event             | Location         | Properties                 |
+| ----------------- | ---------------- | -------------------------- |
+| `user_logged_in`  | Login page       | `method: email`            |
+| `user_logged_in`  | OAuth callback   | `method: google` / `azure` |
+| `user_signed_up`  | Signup page      | `method: email`            |
+| PostHog identify  | Dashboard layout | `userId`, `email`          |
+| `user_logged_out` | Logout button    | —                          |
+| PostHog reset     | Logout button    | Clears identity            |
 
 ### Frontend Setup
 
