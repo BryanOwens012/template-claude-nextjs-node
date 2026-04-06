@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import posthog from 'posthog-js';
 import { Suspense, useState } from 'react';
 import { isEmailInvited } from '@/lib/supabase/check-invite';
 import { createClient } from '@/lib/supabase/client';
@@ -89,6 +90,7 @@ const SignupContent = () => {
         return;
       }
 
+      posthog.capture('user_signed_up', { method: 'email' });
       setMessage('Account created! Logging in...');
       setFirstName('');
       setLastName('');

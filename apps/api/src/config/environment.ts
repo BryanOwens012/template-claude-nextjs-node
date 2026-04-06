@@ -14,6 +14,8 @@ const EnvironmentSchema = z.object({
   LANGFUSE_SECRET_KEY: z.string().optional(),
   LANGFUSE_BASE_URL: z.url().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
+  POSTHOG_API_KEY: z.string().optional(),
+  POSTHOG_HOST: z.string().optional(),
   ADMIN_EMAIL_DOMAIN: z.string().optional(),
   INTERNAL_API_KEY: z.string().optional(),
   BYPASS_AUTH: z.string().optional().default('false'),

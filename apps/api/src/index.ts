@@ -4,6 +4,7 @@ import { getEnvironment } from '@/config/environment.js';
 import { corsMiddleware } from '@/middleware/cors.js';
 import { errorHandler } from '@/middleware/errorHandler.js';
 import { closeLangfuse, initLangfuse } from '@/services/langfuse.js';
+import { initPostHog, shutdownPostHog } from '@/services/posthog.js';
 import { closeRedis, initRedis } from '@/services/redis.js';
 import { initSupabase } from '@/services/supabase.js';
 import { initTelemetry, shutdownTelemetry } from '@/services/telemetry.js';
@@ -58,6 +59,7 @@ let server: ReturnType<typeof app.listen>;
 const startServer = async (): Promise<void> => {
   try {
     initTelemetry();
+    initPostHog();
     await initRedis();
     await initSupabase();
     await initLangfuse();
@@ -71,6 +73,7 @@ const startServer = async (): Promise<void> => {
     const shutdown = async (signal: string) => {
       console.log(`\n📍 Received ${signal}, shutting down gracefully...`);
       server.close(async () => {
+        await shutdownPostHog();
         await shutdownTelemetry();
         await closeLangfuse();
         await closeRedis();

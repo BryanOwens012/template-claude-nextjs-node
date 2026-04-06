@@ -17,6 +17,8 @@
     "@trpc/tanstack-react-query": "^11.16.0",
     "next": "^16.0.7",
     "npm": "^11.6.4",
+    "posthog-js": "^1.364.7",
+    "posthog-node": "^5.28.11",
     "react": "^19.2.1",
     "react-dom": "^19.0.0"
   },

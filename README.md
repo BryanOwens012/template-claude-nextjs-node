@@ -12,6 +12,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 - **Redis Integration**: Built-in caching with Railway-optimized connection settings
 - **Vercel AI SDK**: First-class LLM integration with Claude Haiku, streaming, and tool calls
 - **Langfuse Integration**: Optional LLM observability for prompts, tracing, and sessions
+- **PostHog Analytics**: Optional web analytics and product analytics with managed reverse proxy support
 - **Deployment Ready**: Pre-configured for Vercel (frontend) and Railway (backend + Redis)
 - **Monorepo Structure**: Organized multi-service architecture
 - **Best Practices**: Includes CLAUDE.md for comprehensive AI-assisted development guidelines
@@ -186,6 +187,49 @@ The template includes `.well-known/microsoft-identity-association.json` route ha
 #### CSRF Protection
 
 The `x-trpc-source` header is sent on all tRPC requests. Its value is arbitrary (e.g., `'nextjs-client'`) — the backend only checks for its _existence_, not its value. The purpose is to force a CORS preflight, which prevents cross-site form attacks since browsers cannot send custom headers on cross-origin requests without one.
+
+### PostHog Analytics Setup (Optional)
+
+[PostHog](https://posthog.com) provides web analytics and product analytics (free tier available). The template includes client-side and server-side PostHog integration that activates when you set the environment variables.
+
+1. **Create a PostHog project** at [https://us.posthog.com](https://us.posthog.com) (free).
+
+2. **Get your project API key** from Project Settings.
+
+3. **Enable Web Analytics** at `https://us.posthog.com/project/{PROJECT_ID}/settings/project-web-analytics`.
+
+4. **Set environment variables**:
+   - `NEXT_PUBLIC_POSTHOG_KEY` in `apps/web/.env.local` — your project API key
+   - `NEXT_PUBLIC_POSTHOG_HOST` in `apps/web/.env.local` — API host (default: `https://us.i.posthog.com`)
+   - `POSTHOG_API_KEY` in `apps/api/.env` — same project API key (for server-side events)
+   - `POSTHOG_HOST` in `apps/api/.env` — same API host
+
+5. **Set up a managed reverse proxy** (recommended) at `https://us.posthog.com/project/{PROJECT_ID}/settings/organization-proxy`. This routes PostHog requests through your own subdomain (e.g. `https://analytics.myapp.com`), which prevents adblockers from blocking analytics. Set `NEXT_PUBLIC_POSTHOG_HOST` to your proxy URL.
+
+6. **View your analytics** at `https://us.posthog.com/project/{PROJECT_ID}/web`.
+
+If PostHog is not configured, all analytics calls silently no-op — no errors, no impact on the app.
+
+#### PostHog Environment Variables
+
+| Variable                   | Location              | Description                                            |
+| -------------------------- | --------------------- | ------------------------------------------------------ |
+| `NEXT_PUBLIC_POSTHOG_KEY`  | `apps/web/.env.local` | PostHog project API key (public)                       |
+| `NEXT_PUBLIC_POSTHOG_HOST` | `apps/web/.env.local` | PostHog API host or reverse proxy URL                  |
+| `POSTHOG_API_KEY`          | `apps/api/.env`       | Same project API key (for server-side events)          |
+| `POSTHOG_HOST`             | `apps/api/.env`       | PostHog API host (default: `https://us.i.posthog.com`) |
+
+#### Built-in Events
+
+The template captures these events out of the box:
+
+| Event            | Location         | Properties                 |
+| ---------------- | ---------------- | -------------------------- |
+| `user_logged_in` | Login page       | `method: email`            |
+| `user_logged_in` | OAuth callback   | `method: google` / `azure` |
+| `user_signed_up` | Signup page      | `method: email`            |
+| PostHog identify | Dashboard layout | `userId`, `email`          |
+| PostHog reset    | Logout button    | Clears identity            |
 
 ### Frontend Setup
 

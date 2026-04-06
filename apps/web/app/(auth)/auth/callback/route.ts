@@ -1,6 +1,7 @@
 import { type CookieOptions, createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { type NextRequest, NextResponse } from 'next/server';
+import { posthogServer } from '@/lib/posthog-server';
 import { isEmailInvited } from '@/lib/supabase/check-invite';
 import { SUPABASE_COOKIE_DOMAIN } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
@@ -118,6 +119,16 @@ export const GET = async (request: NextRequest) => {
 
           return response;
         }
+      }
+
+      // Capture OAuth login event server-side
+      if (data.user) {
+        const provider = data.user.app_metadata?.provider ?? 'oauth';
+        posthogServer.capture({
+          distinctId: data.user.id,
+          event: 'user_logged_in',
+          properties: { method: provider },
+        });
       }
 
       // Password recovery flow -> update-password page; everything else -> dashboard

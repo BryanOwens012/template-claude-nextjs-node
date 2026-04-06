@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import posthog from 'posthog-js';
 import { Suspense, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -44,6 +45,7 @@ const LoginContent = () => {
         return;
       }
 
+      posthog.capture('user_logged_in', { method: 'email' });
       router.push(redirectUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
