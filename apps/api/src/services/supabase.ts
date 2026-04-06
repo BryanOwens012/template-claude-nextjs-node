@@ -1,5 +1,5 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@shared/supabase/types.js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getEnvironment } from '@/config/environment.js';
 
 let supabaseClient: SupabaseClient<Database> | null = null;
@@ -37,5 +37,10 @@ export const initSupabase = async (): Promise<void> => {
   }
 };
 
-export const getSupabaseClient = (): SupabaseClient<Database> | null => supabaseClient;
+export const getSupabaseClient = (): SupabaseClient<Database> => {
+  if (!supabaseClient) {
+    throw new Error('Supabase client is not initialized. Call initSupabase() first.');
+  }
+  return supabaseClient;
+};
 export const isSupabaseAvailable = (): boolean => supabaseAvailable;

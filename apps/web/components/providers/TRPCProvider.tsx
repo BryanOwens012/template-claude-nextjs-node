@@ -4,6 +4,7 @@ import type { AppRouter } from '@api/trpc/router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import { useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { TRPCProvider as BaseTRPCProvider } from '@/lib/trpc';
 
 const makeQueryClient = () =>
@@ -34,8 +35,25 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
         httpBatchLink({
           url: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/trpc`,
           // Custom header forces CORS preflight, blocking cross-site form attacks.
-          // Value is arbitrary — used for debugging which client made the request.
-          headers: () => ({ 'x-trpc-source': 'nextjs-client' }),
+          // Value is arbitrary — backend only checks for its existence, not its value.
+          async headers() {
+            const headers: Record<string, string> = { 'x-trpc-source': 'nextjs-client' };
+            try {
+              const supabase = createClient();
+              const {
+                data: { session },
+              } = await supabase.auth.getSession();
+              if (session?.access_token) {
+                headers.Authorization = `Bearer ${session.access_token}`;
+              }
+            } catch {
+              // Silently fail — session cookies will be sent via fetch credentials
+            }
+            return headers;
+          },
+          fetch(url, options) {
+            return fetch(url, { ...options, credentials: 'include' });
+          },
         }),
       ],
     }),

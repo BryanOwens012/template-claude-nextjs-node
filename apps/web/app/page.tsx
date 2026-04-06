@@ -4,6 +4,22 @@ import ApiStatus from '@/components/ApiStatus';
 const Home = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8 gap-8">
+      {/* Auth Links */}
+      <nav className="absolute top-4 right-4 flex gap-3">
+        <Link
+          href="/login"
+          className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+        >
+          Log in
+        </Link>
+        <Link
+          href="/signup"
+          className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Sign up
+        </Link>
+      </nav>
+
       <main className="flex flex-col gap-8 items-center max-w-2xl">
         {/* Header */}
         <div className="text-center">
