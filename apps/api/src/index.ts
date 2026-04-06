@@ -73,10 +73,10 @@ const startServer = async (): Promise<void> => {
     const shutdown = async (signal: string) => {
       console.log(`\n📍 Received ${signal}, shutting down gracefully...`);
       server.close(async () => {
-        await shutdownPostHog();
-        await shutdownTelemetry();
         await closeLangfuse();
         await closeRedis();
+        await shutdownPostHog();
+        await shutdownTelemetry();
         process.exit(0);
       });
       setTimeout(() => process.exit(1), 30_000); // Force-kill after 30s
