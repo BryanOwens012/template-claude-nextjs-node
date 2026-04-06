@@ -142,14 +142,35 @@ git commit -m "Add <new-package> dependency"
 ```
 apps/web/
 ├── app/                  # Next.js app router
+│   ├── (auth)/          # Auth pages (login, signup, reset-password, etc.)
+│   │   ├── login/page.tsx
+│   │   ├── signup/page.tsx
+│   │   ├── reset-password/page.tsx
+│   │   ├── update-password/page.tsx
+│   │   ├── auth/callback/route.ts       # OAuth callback handler
+│   │   ├── auth/auth-code-error/page.tsx
+│   │   └── layout.tsx
+│   ├── (dashboard)/     # Protected dashboard pages
+│   │   ├── dashboard/page.tsx
+│   │   └── layout.tsx   # Auth guard + header
+│   ├── .well-known/     # Microsoft domain verification
 │   ├── page.tsx         # Home page
-│   ├── layout.tsx       # Root layout (wraps children with TRPCProvider)
-│   └── api/             # API routes (if needed)
+│   └── layout.tsx       # Root layout (wraps children with TRPCProvider)
 ├── components/           # React components
-│   └── providers/       # Context providers
-│       └── TRPCProvider.tsx  # tRPC + TanStack Query provider
+│   ├── providers/       # Context providers
+│   │   └── TRPCProvider.tsx  # tRPC + TanStack Query + auth headers
+│   └── LogoutButton.tsx
 ├── lib/                 # Utilities and helpers
+│   ├── supabase/        # Supabase clients
+│   │   ├── client.ts    # Browser client
+│   │   ├── server.ts    # Server client (RSC)
+│   │   ├── middleware.ts # Session updater (proxy)
+│   │   ├── service.ts   # Admin client (secret key)
+│   │   └── check-invite.ts  # Invitation gating (server action)
+│   ├── utils/admin.ts   # Admin email domain check
 │   └── trpc.ts          # tRPC client context (useTRPC hook)
+├── public/sso/          # OAuth provider logos (Google, Microsoft SVGs)
+├── proxy.ts             # Next.js 16 middleware (route protection)
 └── types/               # TypeScript type definitions
 ```
 
@@ -167,7 +188,8 @@ apps/api/
 │   │   ├── cors.ts              # CORS configuration with localhost passthrough
 │   │   └── errorHandler.ts      # Centralized error handling (400s, ZodError, 500)
 │   ├── trpc/
-│   │   ├── init.ts              # tRPC context (req/res), createRouter, publicProcedure
+│   │   ├── init.ts              # tRPC context (req/res), createRouter, publicProcedure, middleware
+│   │   ├── middleware.ts        # Auth middleware (authenticatedProcedure, adminProcedure, etc.)
 │   │   ├── router.ts            # Root router merging sub-routers, exports AppRouter type
 │   │   └── routers/
 │   │       ├── health.ts        # health.check query
@@ -210,7 +232,7 @@ vercel.json            # Vercel deployment config for web app (simplified)
 
 ### Error Handling
 
-- Handle errors gracefully with try/catch (JS) or try/except (Python)
+- Handle errors gracefully with try/catch
 - Provide meaningful error messages
 - Log errors appropriately for debugging
 - Don't silently swallow errors
@@ -390,11 +412,25 @@ apps/
 **Frontend** (`apps/web/.env.local`):
 
 ```bash
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8000
-# Public vars must be prefixed with NEXT_PUBLIC_
-# Optionally, for direct Supabase client-side calls:
-# NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-# NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxxxxxxxxxxxx
+
+# Supabase (Required for auth)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxxxxxxxxxxxx
+SUPABASE_SECRET_KEY=sb_secret_xxxxxxxxxxxxx
+
+# Optional — for cross-subdomain cookies (e.g. .myapp.com)
+# SUPABASE_COOKIE_DOMAIN=
+
+# Invitation Gating (Optional — comma-separated emails. Empty = open signup)
+# INVITED_EMAILS=alice@example.com,bob@example.com
+
+# Admin Email Domain (Optional — emails @this-domain bypass invite check)
+# ADMIN_EMAIL_DOMAIN=mycompany.com
+
+# Azure OAuth Client ID (Optional — for Microsoft domain verification via .well-known endpoint)
+# AZURE_OAUTH_CLIENT_ID=your-azure-app-client-id
 ```
 
 **Backend** (`apps/api/.env`):
@@ -512,7 +548,7 @@ Supabase uses two types of API keys (new format as of 2025):
 - Safe for client-side (browsers, mobile apps)
 - Has limited permissions matching your Row Level Security (RLS) policies
 - Can be exposed in frontend code (use `NEXT_PUBLIC_` prefix in Next.js)
-- Optional — only needed if calling Supabase directly from the browser
+- Required for Supabase Auth (browser client uses it for login, signup, OAuth, and session management)
 - Example: `sb_publishable_xxxxxxxxxxxxx`
 
 **Migration Note:**
@@ -657,8 +693,8 @@ Before considering any task complete:
 
 - [ ] Code verified by reading actual files (not assumed)
 - [ ] No hallucinated functions, imports, or APIs
-- [ ] Code follows style guidelines (arrow functions, type hints, etc.)
-- [ ] Types properly defined (TypeScript interfaces, Python type hints)
+- [ ] Code follows style guidelines (arrow functions, TypeScript types, etc.)
+- [ ] Types properly defined (TypeScript interfaces)
 - [ ] No unused imports or variables
 - [ ] Error cases handled appropriately
 
@@ -668,7 +704,7 @@ Before considering any task complete:
 - [ ] Functionality confirmed to work as expected
 - [ ] No console errors or warnings when testing
 - [ ] Build passes successfully (frontend and/or backend)
-- [ ] All type errors resolved (TypeScript and Python)
+- [ ] All type errors resolved (TypeScript)
 - [ ] No regressions in existing functionality
 
 ### Documentation
@@ -740,9 +776,9 @@ When using this template for a new project:
 ### Project-Specific Configuration
 
 1. Add project-specific environment variables to `.env.example` files
-2. Configure CORS with your actual frontend URL in `apps/api/main.py`
+2. Configure CORS with your actual frontend URL in `apps/api/src/middleware/cors.ts`
 3. Set up database schema (if using Supabase or other database)
-4. Add authentication if needed (NextAuth.js, JWT, etc.)
+4. Configure Supabase Auth providers (email, Google, Microsoft are built in — see README)
 5. Customize API routes for your specific use case
 
 ### Documentation Updates
@@ -764,14 +800,11 @@ When using this template for a new project:
 
 Common features to add based on project needs:
 
-- Database integration (PostgreSQL, MongoDB, etc.)
-- Authentication (NextAuth.js, JWT)
 - State management (Zustand, Redux)
 - Real-time features (WebSockets, Server-Sent Events)
 - File uploads (S3, Cloudinary)
-- Background jobs (Celery, BullMQ)
-- Caching (Redis)
-- Testing (Jest, Pytest, Playwright)
+- Background jobs (BullMQ)
+- Testing (Jest, Playwright)
 - CI/CD pipelines
 - Docker containerization
 - Monitoring and logging (Sentry, LogRocket)

@@ -4,7 +4,8 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 
 ## Features
 
-- **Modern Frontend**: Next.js 15+ with React 19, TypeScript, Tailwind CSS, Radix UI, shadcn/ui
+- **Authentication**: Supabase Auth with email+password, Google OAuth, and Microsoft OAuth (all free)
+- **Modern Frontend**: Next.js 16 with React 19, TypeScript, Tailwind CSS, Radix UI, shadcn/ui
 - **Robust Backend**: Express 5 + tRPC v11 with Node.js 22+, TypeScript, end-to-end type safety
 - **End-to-End Type Safety**: tRPC v11 + TanStack Query v5 for type-safe API calls with automatic caching
 - **Supabase Integration**: PostgreSQL database with built-in auth, realtime, and storage
@@ -20,7 +21,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 
 ### Frontend
 
-- **Framework**: Next.js 15+
+- **Framework**: Next.js 16
 - **UI Library**: React 19
 - **Language**: TypeScript 5+
 - **Styling**: Tailwind CSS
@@ -46,10 +47,35 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 .
 ├── apps/
 │   ├── web/                  # Next.js application
-│   │   ├── app/             # Next.js app router
-│   │   ├── components/      # React components (Radix UI, shadcn/ui)
-│   │   │   └── providers/   # TRPCProvider + QueryClient
-│   │   ├── lib/             # Utilities (tRPC client context)
+│   │   ├── app/
+│   │   │   ├── (auth)/               # Auth pages (login, signup, reset-password, etc.)
+│   │   │   │   ├── login/page.tsx
+│   │   │   │   ├── signup/page.tsx
+│   │   │   │   ├── reset-password/page.tsx
+│   │   │   │   ├── update-password/page.tsx
+│   │   │   │   ├── auth/callback/route.ts      # OAuth callback handler
+│   │   │   │   ├── auth/auth-code-error/page.tsx
+│   │   │   │   └── layout.tsx
+│   │   │   ├── (dashboard)/          # Protected dashboard pages
+│   │   │   │   ├── dashboard/page.tsx
+│   │   │   │   └── layout.tsx        # Auth guard + header
+│   │   │   ├── .well-known/          # Microsoft domain verification
+│   │   │   ├── layout.tsx            # Root layout (Providers)
+│   │   │   └── page.tsx              # Home page
+│   │   ├── public/sso/              # OAuth provider logos (Google, Microsoft SVGs)
+│   │   ├── components/
+│   │   │   ├── providers/TRPCProvider.tsx  # tRPC + auth headers
+│   │   │   └── LogoutButton.tsx
+│   │   ├── lib/
+│   │   │   ├── supabase/             # Supabase clients
+│   │   │   │   ├── client.ts         # Browser client
+│   │   │   │   ├── server.ts         # Server client (RSC)
+│   │   │   │   ├── middleware.ts      # Session updater (proxy)
+│   │   │   │   ├── service.ts        # Admin client (secret key)
+│   │   │   │   └── check-invite.ts   # Invitation gating (server action)
+│   │   │   ├── utils/admin.ts        # Admin email domain check
+│   │   │   └── trpc.ts              # tRPC client context
+│   │   ├── proxy.ts                  # Next.js 16 middleware (route protection)
 │   │   ├── package.json
 │   │   └── .env.example
 │   ├── api/                  # Express + tRPC API service
@@ -60,8 +86,9 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 │   │   │   ├── middleware/
 │   │   │   │   ├── cors.ts           # CORS configuration
 │   │   │   │   └── errorHandler.ts   # Error handling
-│   │   │   ├── trpc/                 # tRPC procedures
-│   │   │   │   ├── init.ts           # Context, createRouter, publicProcedure
+│   │   │   ├── trpc/
+│   │   │   │   ├── init.ts           # Context, createRouter, publicProcedure, middleware
+│   │   │   │   ├── middleware.ts      # Auth middleware (authenticatedProcedure, etc.)
 │   │   │   │   ├── router.ts         # Root router, exports AppRouter type
 │   │   │   │   └── routers/          # Sub-routers (health, redis, etc.)
 │   │   │   ├── services/             # Redis, Supabase, Langfuse, telemetry clients
@@ -108,10 +135,57 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 2. **Get your credentials**:
    - Go to Project Settings → API
    - Copy your `Project URL` (SUPABASE_URL)
-   - Copy your `publishable key` (starts with `sb_publishable_`) - for frontend (optional)
+   - Copy your `publishable key` (starts with `sb_publishable_`) - required for frontend auth
    - Copy your `secret key` (starts with `sb_secret_`) (SUPABASE_SECRET_KEY) - **Keep this secret!**
 
 3. **Add to `.env` file** (see Backend Setup below)
+
+### Supabase Auth Setup
+
+After creating your Supabase project, configure authentication providers:
+
+1. **Auth > Providers > Email**: Email+password sign-in is enabled by default.
+
+2. **Auth > Providers > Google**: Enable and paste your Client ID + Client Secret.
+   - Register an OAuth client at: https://console.cloud.google.com/auth/clients
+   - Create an OAuth 2.0 Client ID (type: "Web application")
+   - Set the **Authorized redirect URI** to the "Callback URL (for OAuth)" shown in the Google panel at `https://supabase.com/dashboard/project/{PROJECT_ID}/auth/providers`
+
+3. **Auth > Providers > Azure (Microsoft)**: Enable and paste your Client ID + Client Secret.
+   - Register verified custom domain names at: https://entra.microsoft.com/#view/Microsoft_AAD_IAM/DomainsManagementMenuBlade/~/CustomDomainNames
+   - Register verified custom URL domains at: https://entra.microsoft.com/#view/Microsoft_AAD_IAM/DomainsManagementMenuBlade/~/CustomUrlDomains
+   - Register an OAuth client at: https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade --> All applications → New registration, with "Any Entra ID Tenant + Personal Microsoft accounts" supported account types and "Web" platform for Redirect URI
+   - Set the **Redirect URI** to the "Callback URL (for OAuth)" shown in the Azure panel at `https://supabase.com/dashboard/project/{PROJECT_ID}/auth/providers`
+
+4. **Auth > URL Configuration > Site URL**: Set to your app's base URL (e.g., `http://localhost:3000` for dev, `https://myapp.com` for prod).
+
+5. **Auth > URL Configuration > Redirect URLs**: Add `http://localhost:3000/auth/callback` for dev, `https://myapp.com/auth/callback` for prod.
+
+Without steps 2-3, OAuth buttons will error. Without steps 4-5, Supabase will reject redirect URLs as unauthorized.
+
+> **Cost:** Supabase Auth (including email+password), Google OAuth, and Microsoft/Azure OAuth are all **free** to use. No paid plans are required for any of these auth providers.
+
+#### Microsoft Domain Verification (`.well-known`)
+
+The template includes `.well-known/microsoft-identity-association.json` route handlers that serve Azure domain verification JSON. This allows Microsoft to verify that your domain owns the OAuth client ID, which is required for custom domain branding in the Azure login flow. Set the `AZURE_OAUTH_CLIENT_ID` environment variable to enable it. If not set, the endpoint returns a 404. Azure may request this file at either `/.well-known/microsoft-identity-association.json` or `/.well-known/microsoft-identity-association` — both paths are handled.
+
+#### Auth Environment Variables
+
+| Variable                               | Location                                | Description                                                                  |
+| -------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | `apps/web/.env.local`                   | Supabase project URL (public)                                                |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `apps/web/.env.local`                   | Supabase publishable key (public)                                            |
+| `SUPABASE_SECRET_KEY`                  | `apps/web/.env.local`                   | Supabase secret key (server-only)                                            |
+| `SUPABASE_COOKIE_DOMAIN`               | `apps/web/.env.local`                   | Optional. For cross-subdomain cookies (e.g. `.myapp.com`)                    |
+| `INVITED_EMAILS`                       | `apps/web/.env.local`                   | Optional. Comma-separated list of allowed emails. Empty = open signup        |
+| `ADMIN_EMAIL_DOMAIN`                   | `apps/web/.env.local` + `apps/api/.env` | Optional. Emails `@this-domain` bypass invite check and get admin privileges |
+| `INTERNAL_API_KEY`                     | `apps/api/.env`                         | Optional. For server-to-server auth bypass                                   |
+| `AZURE_OAUTH_CLIENT_ID`                | `apps/web/.env.local`                   | Optional. Enables `.well-known` Microsoft domain verification endpoint       |
+| `BYPASS_AUTH`                          | `apps/api/.env`                         | Dev only. Set to `true` to bypass auth entirely (never in production)        |
+
+#### CSRF Protection
+
+The `x-trpc-source` header is sent on all tRPC requests. Its value is arbitrary (e.g., `'nextjs-client'`) — the backend only checks for its _existence_, not its value. The purpose is to force a CORS preflight, which prevents cross-site form attacks since browsers cannot send custom headers on cross-origin requests without one.
 
 ### Frontend Setup
 
@@ -171,9 +245,6 @@ Once the API is running, test connectivity using the included test script:
 ```bash
 # Run the comprehensive test script
 bash scripts/test_services.sh
-
-# Test against a different API URL
-python scripts/test_services.py --api-url https://your-api.railway.app
 ```
 
 The test script will check:
@@ -296,13 +367,27 @@ Each service is independently deployable with its own configuration and dependen
 ### Frontend (`apps/web/.env.local`)
 
 ```bash
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8000
-# Add your frontend environment variables here
+
+# Supabase (Required for auth)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxxxxxxxxxxxx
+SUPABASE_SECRET_KEY=sb_secret_xxxxxxxxxxxxx
+
+# Optional auth config
+# SUPABASE_COOKIE_DOMAIN=.myapp.com
+# INVITED_EMAILS=alice@example.com,bob@example.com
+# ADMIN_EMAIL_DOMAIN=mycompany.com
+# AZURE_OAUTH_CLIENT_ID=your-azure-app-client-id
 ```
 
 ### Backend (`apps/api/.env`)
 
 ```bash
+PORT=8000
+NODE_ENV=development
+
 # Supabase (required)
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SECRET_KEY=sb_secret_xxxxxxxxxxxxx
@@ -313,10 +398,13 @@ REDIS_URL=redis://localhost:6379
 # CORS (comma-separated origins)
 CORS_ORIGINS=http://localhost:3000,http://localhost:3001
 
-# API Keys (as needed)
-ANTHROPIC_API_KEY=your_key_here
+# Auth (optional)
+# ADMIN_EMAIL_DOMAIN=mycompany.com
+# INTERNAL_API_KEY=your-internal-api-key
+# BYPASS_AUTH=true  # Dev only, never in production
 
-# Add your backend environment variables here
+# API Keys (as needed)
+# ANTHROPIC_API_KEY=sk-ant-xxxxx
 ```
 
 ## Development Guidelines
