@@ -148,15 +148,15 @@ After creating your Supabase project, configure authentication providers:
 1. **Auth > Providers > Email**: Email+password sign-in is enabled by default.
 
 2. **Auth > Providers > Google**: Enable and paste your Client ID + Client Secret.
-   - Register an OAuth client at: https://console.cloud.google.com/auth/clients
+   - Register an OAuth client at: [https://console.cloud.google.com/auth/clients](https://console.cloud.google.com/auth/clients)
    - Create an OAuth 2.0 Client ID (type: "Web application")
-   - Set the **Authorized redirect URI** to the "Callback URL (for OAuth)" shown in the Google panel at `https://supabase.com/dashboard/project/{PROJECT_ID}/auth/providers`
+   - Set the **Authorized redirect URI** to the "Callback URL (for OAuth)" shown in the Google panel at [`https://supabase.com/dashboard/project/{PROJECT_ID}/auth/providers`](https://supabase.com/dashboard/project/{PROJECT_ID}/auth/providers)
 
-3. **Auth > Providers > Azure (Microsoft)**: Enable and paste your Client ID + Client Secret.
-   - Register verified custom domain names at: https://entra.microsoft.com/#view/Microsoft_AAD_IAM/DomainsManagementMenuBlade/~/CustomDomainNames
-   - Register verified custom URL domains at: https://entra.microsoft.com/#view/Microsoft_AAD_IAM/DomainsManagementMenuBlade/~/CustomUrlDomains
-   - Register an OAuth client at: https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade --> All applications → New registration, with "Any Entra ID Tenant + Personal Microsoft accounts" supported account types and "Web" platform for Redirect URI
-   - Set the **Redirect URI** to the "Callback URL (for OAuth)" shown in the Azure panel at `https://supabase.com/dashboard/project/{PROJECT_ID}/auth/providers`
+3. **Auth > Providers > Azure (Microsoft)**: Enable and paste your Client ID + Client Secret. Follow these steps in order:
+   - Register an OAuth client at: [https://portal.azure.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/Overview](https://portal.azure.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/Overview) --> Add --> App registration, with "Any Entra ID Tenant + Personal Microsoft accounts" supported account types and "Web" platform for Redirect URI
+   - Set the **Redirect URI** to the "Callback URL (for OAuth)" that is shown in Supabase Auth's Azure panel at [`https://supabase.com/dashboard/project/{PROJECT_ID}/auth/providers`](https://supabase.com/dashboard/project/{PROJECT_ID}/auth/providers)
+   - Register verified custom domain names at: [https://entra.microsoft.com/#view/Microsoft_AAD_IAM/DomainsManagementMenuBlade/~/CustomDomainNames](https://entra.microsoft.com/#view/Microsoft_AAD_IAM/DomainsManagementMenuBlade/~/CustomDomainNames)
+   - Register verified custom URL domains at: [https://entra.microsoft.com/#view/Microsoft_AAD_IAM/DomainsManagementMenuBlade/~/CustomUrlDomains](https://entra.microsoft.com/#view/Microsoft_AAD_IAM/DomainsManagementMenuBlade/~/CustomUrlDomains)
 
 4. **Auth > URL Configuration > Site URL**: Set to your app's base URL (e.g., `http://localhost:3000` for dev, `https://myapp.com` for prod).
 
@@ -196,7 +196,7 @@ The `x-trpc-source` header is sent on all tRPC requests. Its value is arbitrary 
 
 2. **Get your project API key** from Project Settings.
 
-3. **Enable Web Analytics** at `https://us.posthog.com/project/{PROJECT_ID}/settings/project-web-analytics`.
+3. **Enable Web Analytics** at [`https://us.posthog.com/project/{PROJECT_ID}/settings/project-web-analytics`](https://us.posthog.com/project/{PROJECT_ID}/settings/project-web-analytics).
 
 4. **Set environment variables**:
    - `NEXT_PUBLIC_POSTHOG_KEY` in `apps/web/.env.local` — your project API key
@@ -204,9 +204,9 @@ The `x-trpc-source` header is sent on all tRPC requests. Its value is arbitrary 
    - `POSTHOG_API_KEY` in `apps/api/.env` — same project API key (for server-side events)
    - `POSTHOG_HOST` in `apps/api/.env` — same API host
 
-5. **Set up a managed reverse proxy** (recommended) at `https://us.posthog.com/project/{PROJECT_ID}/settings/organization-proxy`. This routes PostHog requests through your own subdomain (e.g. `https://analytics.myapp.com`), which prevents adblockers from blocking analytics. Set `NEXT_PUBLIC_POSTHOG_HOST` to your proxy URL.
+5. **Set up a managed reverse proxy** (recommended) at [`https://us.posthog.com/project/{PROJECT_ID}/settings/organization-proxy`](https://us.posthog.com/project/{PROJECT_ID}/settings/organization-proxy). This routes PostHog requests through your own subdomain (e.g. `https://analytics.myapp.com`), which prevents adblockers from blocking analytics. Set `NEXT_PUBLIC_POSTHOG_HOST` to your proxy URL.
 
-6. **View your analytics** at `https://us.posthog.com/project/{PROJECT_ID}/web`.
+6. **View your analytics** at [`https://us.posthog.com/project/{PROJECT_ID}/web`](https://us.posthog.com/project/{PROJECT_ID}/web).
 
 If PostHog is not configured, all analytics calls silently no-op — no errors, no impact on the app.
 
