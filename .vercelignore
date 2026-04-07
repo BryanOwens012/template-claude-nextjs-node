@@ -1,11 +1,9 @@
 /*
 !/.env
 !/apps/
-/apps/*
-!/apps/web/
-/apps/api/
-/apps/*/
-!/apps/web/
+!/vercel.json
+!/package.json
+!/package-lock.json
 /docs/
 *.md
 !apps/web/**/*.md
