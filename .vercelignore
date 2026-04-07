@@ -1,9 +1,0 @@
-/*
-!/.env
-!/apps/
-!/vercel.json
-!/package.json
-!/package-lock.json
-/docs/
-*.md
-!apps/web/**/*.md
