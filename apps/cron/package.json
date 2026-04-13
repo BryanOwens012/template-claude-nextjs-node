@@ -1,0 +1,21 @@
+{
+  "name": "cron",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "keep-alive": "tsx src/keep-alive.ts",
+    "build": "tsc",
+    "start:keep-alive": "node dist/src/keep-alive.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.99.2"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
