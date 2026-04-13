@@ -6,9 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": [
-      "apps/**/*.{js,jsx,ts,tsx,json,jsonc,jsonl}"
-    ],
+    "includes": ["apps/**/*.{js,jsx,ts,tsx,json,jsonc,jsonl}"],
     "ignoreUnknown": true
   },
   "formatter": {
@@ -43,7 +41,8 @@
       },
       "style": {
         "useConst": "error",
-        "noNonNullAssertion": "error"
+        "noNonNullAssertion": "error",
+        "useBlockStatements": "error"
       },
       "complexity": {
         "useArrowFunction": "error"
