@@ -1,7 +1,7 @@
-import path from 'path';
+import path from 'node:path';
+import type { NextConfig } from 'next';
 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+const nextConfig: NextConfig = {
   reactStrictMode: true,
   turbopack: {
     root: path.resolve(import.meta.dirname, '../..'),
