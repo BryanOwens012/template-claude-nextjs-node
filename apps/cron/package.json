@@ -9,7 +9,7 @@
     "start:keep-alive": "node dist/src/keep-alive.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.99.2"
+    "@supabase/supabase-js": "^2.105.1"
   },
   "devDependencies": {
     "tsx": "^4.21.0",
