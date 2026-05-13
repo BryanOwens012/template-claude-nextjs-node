@@ -14,7 +14,7 @@
     "@ai-sdk/anthropic": "^3.0.69",
     "@langfuse/otel": "^5.1.0",
     "@langfuse/tracing": "^5.1.0",
-    "@opentelemetry/sdk-node": "^0.214.0",
+    "@opentelemetry/sdk-node": "^0.218.0",
     "@supabase/supabase-js": "^2.103.0",
     "@trpc/server": "^11.16.0",
     "ai": "^6.0.159",
