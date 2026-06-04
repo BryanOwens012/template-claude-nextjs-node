@@ -578,6 +578,25 @@ The Express backend provides the following endpoints:
 2. Follow Next.js App Router conventions
 3. Import and use shared components from `components/`
 
+### Customizing the Tailwind Theme
+
+Tailwind CSS v4 uses CSS-first configuration — there is no `tailwind.config.ts`. All customization lives in `apps/web/app/globals.css`:
+
+```css
+/* Add design tokens (generates utilities like bg-brand, text-brand) */
+@theme {
+  --color-brand: oklch(0.6 0.2 250);
+  --font-display: "Satoshi", sans-serif;
+}
+
+/* Add a custom utility */
+@utility tab-4 {
+  tab-size: 4;
+}
+```
+
+Content sources are auto-detected (no `content` array needed). To scan additional paths, use `@source "../path";`. See the [Tailwind v4 docs](https://tailwindcss.com/docs/theme) for details.
+
 ### Database Migrations
 
 If using Prisma:
