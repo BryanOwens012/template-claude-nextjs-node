@@ -12,7 +12,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
   - Next.js 16+ (App Router, React Server Components)
   - React 19
   - TypeScript 5+
-  - Tailwind CSS
+  - Tailwind CSS v4 (CSS-first config: `@theme` in `globals.css`, no `tailwind.config.ts`; PostCSS plugin is `@tailwindcss/postcss`, autoprefixer not needed)
   - Radix UI, shadcn/ui
   - TanStack Query v5
 

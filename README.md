@@ -5,7 +5,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 ## Features
 
 - **Authentication**: Supabase Auth with email+password, Google OAuth, and Microsoft OAuth (all free)
-- **Modern Frontend**: Next.js 16 with React 19, TypeScript, Tailwind CSS, Radix UI, shadcn/ui
+- **Modern Frontend**: Next.js 16 with React 19, TypeScript, Tailwind CSS v4, Radix UI, shadcn/ui
 - **Robust Backend**: Express 5 + tRPC v11 with Node.js 22+, TypeScript, end-to-end type safety
 - **End-to-End Type Safety**: tRPC v11 + TanStack Query v5 for type-safe API calls with automatic caching
 - **Supabase Integration**: PostgreSQL database with built-in auth, realtime, and storage
@@ -25,7 +25,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 - **Framework**: Next.js 16
 - **UI Library**: React 19
 - **Language**: TypeScript 5+
-- **Styling**: Tailwind CSS
+- **Styling**: Tailwind CSS v4 (CSS-first configuration via `@theme` in `globals.css`)
 - **UI Components**: Radix UI, shadcn/ui
 - **Data Fetching**: TanStack Query v5 (via tRPC)
 - **Deployment**: Vercel

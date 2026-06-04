@@ -44,7 +44,7 @@ const ApiStatus = () => {
         <p className="text-xs text-red-600 dark:text-red-400 mt-2">{error.message}</p>
         <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
           Make sure the API is running at{' '}
-          <code className="bg-red-100 dark:bg-red-900 px-1 rounded">
+          <code className="bg-red-100 dark:bg-red-900 px-1 rounded-sm">
             {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}
           </code>
         </p>

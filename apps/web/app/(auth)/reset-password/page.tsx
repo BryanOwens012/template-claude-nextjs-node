@@ -52,7 +52,7 @@ const ResetPasswordContent = () => {
 
         <Link
           href="/login"
-          className="block w-full px-6 py-3 font-semibold rounded transition-colors text-center bg-blue-600 text-white hover:bg-blue-700"
+          className="block w-full px-6 py-3 font-semibold rounded-sm transition-colors text-center bg-blue-600 text-white hover:bg-blue-700"
         >
           Back to login
         </Link>
@@ -68,7 +68,7 @@ const ResetPasswordContent = () => {
       </p>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm">
           {error}
         </div>
       )}
@@ -83,7 +83,7 @@ const ResetPasswordContent = () => {
             id="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded text-base focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            className="w-full px-4 py-2 border border-gray-300 rounded-sm text-base focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
             placeholder="you@example.com"
             required
             disabled={loading}
@@ -93,7 +93,7 @@ const ResetPasswordContent = () => {
         <button
           type="submit"
           disabled={loading}
-          className={`w-full px-6 py-3 font-semibold rounded transition-colors mb-4 ${
+          className={`w-full px-6 py-3 font-semibold rounded-sm transition-colors mb-4 ${
             loading
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-blue-600 text-white hover:bg-blue-700'
