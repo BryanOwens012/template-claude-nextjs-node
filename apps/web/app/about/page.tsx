@@ -25,14 +25,14 @@ const AboutPage = () => {
             <h2 className="text-2xl font-semibold mb-3">📁 File-Based Routing</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-3">
               This page is located at{' '}
-              <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">
+              <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded-sm">
                 app/about/page.tsx
               </code>
             </p>
             <p className="text-gray-600 dark:text-gray-400">
               Next.js automatically creates the{' '}
-              <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">/about</code> route
-              based on the folder structure.
+              <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded-sm">/about</code>{' '}
+              route based on the folder structure.
             </p>
           </div>
 

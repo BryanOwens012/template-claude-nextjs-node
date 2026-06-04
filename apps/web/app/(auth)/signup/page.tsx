@@ -21,12 +21,21 @@ const SignupContent = () => {
   const [message, setMessage] = useState<string | null>(null);
 
   const validatePassword = (pwd: string) => {
-    if (pwd.length < 12) return 'Password must be at least 12 characters';
-    if (!/[a-z]/.test(pwd)) return 'Password must include a lowercase letter';
-    if (!/[A-Z]/.test(pwd)) return 'Password must include an uppercase letter';
-    if (!/[0-9]/.test(pwd)) return 'Password must include a number';
-    if (!/[!@#$%^&*\-+~?_=]/.test(pwd))
+    if (pwd.length < 12) {
+      return 'Password must be at least 12 characters';
+    }
+    if (!/[a-z]/.test(pwd)) {
+      return 'Password must include a lowercase letter';
+    }
+    if (!/[A-Z]/.test(pwd)) {
+      return 'Password must include an uppercase letter';
+    }
+    if (!/[0-9]/.test(pwd)) {
+      return 'Password must include a number';
+    }
+    if (!/[!@#$%^&*\-+~?_=]/.test(pwd)) {
       return 'Password must include a special character (e.g. -, *, !, +, ~, ?)';
+    }
     return null;
   };
 
@@ -160,13 +169,13 @@ const SignupContent = () => {
       <h1 className="text-3xl font-bold text-gray-900 mb-10">Sign up</h1>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm">
           {error}
         </div>
       )}
 
       {message && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-sm text-green-700 text-sm">
           {message}
         </div>
       )}
@@ -175,7 +184,7 @@ const SignupContent = () => {
         type="button"
         onClick={handleMicrosoftSignup}
         disabled={loading}
-        className="w-full px-6 py-3 font-semibold rounded transition-colors border border-gray-300 text-gray-900 hover:bg-gray-50 mb-3 disabled:bg-gray-100 disabled:cursor-not-allowed"
+        className="w-full px-6 py-3 font-semibold rounded-sm transition-colors border border-gray-300 text-gray-900 hover:bg-gray-50 mb-3 disabled:bg-gray-100 disabled:cursor-not-allowed"
       >
         <Image
           src="/sso/microsoft-logo.svg"
@@ -191,7 +200,7 @@ const SignupContent = () => {
         type="button"
         onClick={handleGoogleSignup}
         disabled={loading}
-        className="w-full px-6 py-3 font-semibold rounded transition-colors border border-gray-300 text-gray-900 hover:bg-gray-50 mb-6 disabled:bg-gray-100 disabled:cursor-not-allowed"
+        className="w-full px-6 py-3 font-semibold rounded-sm transition-colors border border-gray-300 text-gray-900 hover:bg-gray-50 mb-6 disabled:bg-gray-100 disabled:cursor-not-allowed"
       >
         <Image
           src="/sso/google-logo.svg"
@@ -223,7 +232,7 @@ const SignupContent = () => {
               id="firstName"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded text-base focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+              className="w-full px-4 py-2 border border-gray-300 rounded-sm text-base focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
               placeholder="John"
               required
               disabled={loading}
@@ -239,7 +248,7 @@ const SignupContent = () => {
               id="lastName"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded text-base focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+              className="w-full px-4 py-2 border border-gray-300 rounded-sm text-base focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
               placeholder="Doe"
               required
               disabled={loading}
@@ -256,7 +265,7 @@ const SignupContent = () => {
             id="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded text-base focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            className="w-full px-4 py-2 border border-gray-300 rounded-sm text-base focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
             placeholder="you@example.com"
             required
             disabled={loading}
@@ -272,7 +281,7 @@ const SignupContent = () => {
             id="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded text-base focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            className="w-full px-4 py-2 border border-gray-300 rounded-sm text-base focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
             placeholder="Min. 12 characters"
             required
             disabled={loading}
@@ -285,7 +294,7 @@ const SignupContent = () => {
         <button
           type="submit"
           disabled={loading}
-          className={`w-full px-6 py-3 font-semibold rounded transition-colors mb-4 ${
+          className={`w-full px-6 py-3 font-semibold rounded-sm transition-colors mb-4 ${
             loading
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-blue-600 text-white hover:bg-blue-700'

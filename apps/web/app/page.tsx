@@ -23,7 +23,7 @@ const Home = () => {
       <main className="flex flex-col gap-8 items-center max-w-2xl">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-6xl font-bold mb-4 bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             Hello World!
           </h1>
           <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400">
@@ -95,8 +95,9 @@ const Home = () => {
       {/* Footer */}
       <footer className="text-center text-sm text-gray-500 dark:text-gray-600">
         <p>
-          Edit <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">app/page.tsx</code>{' '}
-          to get started
+          Edit{' '}
+          <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded-sm">app/page.tsx</code> to
+          get started
         </p>
       </footer>
     </div>

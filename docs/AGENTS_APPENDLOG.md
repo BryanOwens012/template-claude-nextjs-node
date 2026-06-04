@@ -136,3 +136,12 @@ When starting a new project with this template:
 - Import in `services/supabase.ts`: `@/../../supabase/types.js` → `@shared/supabase/types.js`
 - Regeneration command: `npx supabase gen types typescript --project-id YOUR_ID > apps/shared/supabase/types.ts`
 - **Note:** Prior log entry (item 9 above) describing `rootDir: "."` and `@/../../supabase/types.js` is superseded by this change.
+
+## 2026-06-04 11:32 PT - Migrate Tailwind CSS v3 → v4
+
+**Type:** Refactor
+**Change:** Upgraded `tailwindcss` 3.4.x → 4.3.0 in `apps/web`. Swapped PostCSS plugin to `@tailwindcss/postcss`, removed `autoprefixer` (built into v4), added `postcss-load-config` as an explicit devDep (was transitive via Tailwind v3). Deleted `tailwind.config.ts` — v4 auto-detects content and config moved to CSS: `@import "tailwindcss"` + `@theme inline` block in `globals.css` mapping `--color-background`/`--color-foreground` to the existing CSS vars. Renamed utilities per the official upgrade guide: bare `rounded` → `rounded-sm`, bare `shadow` → `shadow-sm`, `focus:outline-none` → `focus:outline-hidden`, `bg-gradient-to-r` → `bg-linear-to-r`. Added `@layer base` rule restoring `cursor: pointer` on buttons (v4 preflight defaults to `cursor: default`). Dropped unused custom `.text-balance` utility (built into v4).
+**Rationale:** v3 is in LTS maintenance; v4 is the current major with CSS-first config, faster builds, and automatic content detection.
+**Alternatives Considered:** `npx @tailwindcss/upgrade` codemod — codebase is small enough that a manual, audited migration was safer and produced a cleaner diff.
+**Impact:** No visual changes intended. Verified: all borders already specify explicit colors (v4 default changed to currentColor), `ring` usage already has explicit width/color (v4 default ring changed 3px→1px), no removed-in-v4 utilities (`bg-opacity-*`, `flex-shrink-*`, etc.) were in use. Placeholder text now uses v4 default (currentColor at 50%) instead of gray-400 — acceptable, near-identical. Browser floor rises to Safari 16.4+/Chrome 111+/Firefox 128+.
+**Learnings:** Next 16/Turbopack loads `postcss.config.ts` fine with `@tailwindcss/postcss`. `@theme inline` only emits theme tokens actually used in markup. `postcss-load-config` types must be a direct devDep once Tailwind v3 is gone.

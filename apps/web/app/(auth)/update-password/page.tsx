@@ -14,12 +14,21 @@ const UpdatePasswordContent = () => {
   const [error, setError] = useState<string | null>(null);
 
   const validatePassword = (pwd: string) => {
-    if (pwd.length < 12) return 'Password must be at least 12 characters';
-    if (!/[a-z]/.test(pwd)) return 'Password must include a lowercase letter';
-    if (!/[A-Z]/.test(pwd)) return 'Password must include an uppercase letter';
-    if (!/[0-9]/.test(pwd)) return 'Password must include a number';
-    if (!/[!@#$%^&*\-+~?_=]/.test(pwd))
+    if (pwd.length < 12) {
+      return 'Password must be at least 12 characters';
+    }
+    if (!/[a-z]/.test(pwd)) {
+      return 'Password must include a lowercase letter';
+    }
+    if (!/[A-Z]/.test(pwd)) {
+      return 'Password must include an uppercase letter';
+    }
+    if (!/[0-9]/.test(pwd)) {
+      return 'Password must include a number';
+    }
+    if (!/[!@#$%^&*\-+~?_=]/.test(pwd)) {
       return 'Password must include a special character (e.g. -, *, !, +, ~, ?)';
+    }
     return null;
   };
 
@@ -69,7 +78,7 @@ const UpdatePasswordContent = () => {
       <p className="text-gray-600 mb-8">Enter your new password below.</p>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm">
           {error}
         </div>
       )}
@@ -84,7 +93,7 @@ const UpdatePasswordContent = () => {
             id="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded text-base focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            className="w-full px-4 py-2 border border-gray-300 rounded-sm text-base focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
             placeholder="Min. 12 characters"
             required
             disabled={loading}
@@ -106,7 +115,7 @@ const UpdatePasswordContent = () => {
             id="confirmPassword"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded text-base focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            className="w-full px-4 py-2 border border-gray-300 rounded-sm text-base focus:outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
             placeholder="Re-enter password"
             required
             disabled={loading}
@@ -116,7 +125,7 @@ const UpdatePasswordContent = () => {
         <button
           type="submit"
           disabled={loading}
-          className={`w-full px-6 py-3 font-semibold rounded transition-colors ${
+          className={`w-full px-6 py-3 font-semibold rounded-sm transition-colors ${
             loading
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-blue-600 text-white hover:bg-blue-700'

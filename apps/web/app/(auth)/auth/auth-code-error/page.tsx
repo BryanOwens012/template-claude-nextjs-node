@@ -13,7 +13,7 @@ const AuthCodeErrorContent = () => {
     <div className="w-full text-center">
       <h1 className="text-2xl font-bold text-gray-900 mb-4">Authentication Failed</h1>
 
-      <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded">
+      <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-sm">
         <p className="text-red-700 text-sm font-semibold mb-2">{error && `Error: ${error}`}</p>
         <p className="text-red-600 text-sm">
           {errorDescription || 'An error occurred during authentication. Please try again.'}
@@ -27,13 +27,13 @@ const AuthCodeErrorContent = () => {
       <div className="flex flex-col gap-3">
         <Link
           href="/login"
-          className="px-6 py-3 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 transition-colors"
+          className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-sm hover:bg-blue-700 transition-colors"
         >
           Back to login
         </Link>
         <Link
           href="/"
-          className="px-6 py-3 border border-gray-300 text-gray-900 font-semibold rounded hover:bg-gray-50 transition-colors"
+          className="px-6 py-3 border border-gray-300 text-gray-900 font-semibold rounded-sm hover:bg-gray-50 transition-colors"
         >
           Back to home
         </Link>
