@@ -514,6 +514,71 @@ CORS is configured in `src/middleware/cors.ts`. The middleware:
 - Store connection string in `DATABASE_URL` environment variable
 - Use connection pooling for production (Prisma does this automatically)
 
+### SQL Migrations (Supabase)
+
+Migration files live in `apps/shared/supabase/migrations/`.
+
+**Never run migrations programmatically.** The SQL files are documentation only — never execute them against the database (no `psql`, no `supabase db push`, no programmatic execution of any kind). The engineer will manually run the correct migrations as queries in the Supabase web UI (SQL Editor). When planning schema changes, the deliverable is the migration files themselves, not an applied migration.
+
+**Two files per migration: `.up.sql` and `.down.sql`**
+
+- `<name>.up.sql` — applies the migration.
+- `<name>.down.sql` — manual rollback. It must restore the database as faithfully as possible to the state before the `.up` was run. Sometimes rollback unavoidably deletes data (e.g., dropping a column the up added) — that's acceptable.
+- If the `.up` performs multiple operations in sequence, the `.down` must apply the "undo" operations in **reverse order** so the rollback unwinds cleanly.
+- When a migration file is created, edited, or deleted, keep its `.up.sql`/`.down.sql` pair in sync.
+
+**Idempotency** — all migration SQL must be safe to run more than once:
+
+- `CREATE TABLE IF NOT EXISTS ...`
+- `ALTER TABLE ... ADD COLUMN IF NOT EXISTS ...`
+- `CREATE INDEX IF NOT EXISTS ...`
+- `DROP ... IF EXISTS ...`
+- `CREATE OR REPLACE FUNCTION ...`
+- For things without `IF NOT EXISTS` support (policies, constraints, types, triggers): `DROP ... IF EXISTS` first, or wrap in a `DO $$ ... $$` block that checks `pg_policies` / `pg_constraint` / `pg_type` before creating.
+
+**Fail-early guards** — each `.up.sql` must begin with guard(s) that fail early if existing data would guarantee the migration fails partway through, e.g. violation of an invariant being introduced (unique constraint, foreign key reference, NOT NULL):
+
+```sql
+-- Guard: adding UNIQUE(email) — fail early if duplicates exist
+do $$
+begin
+  if exists (
+    select 1 from public.users group by email having count(*) > 1
+  ) then
+    raise exception 'Migration aborted: duplicate emails in public.users would violate the new unique constraint';
+  end if;
+end $$;
+```
+
+**Explicit GRANTs (required — Supabase enforces this)**
+
+Supabase no longer auto-grants table privileges: new tables in projects created after **May 30, 2026** (and, from **Oct 30, 2026**, new tables in existing projects) receive **no grants** to `anon`, `authenticated`, or `service_role`. Without an explicit `GRANT`, PostgREST/supabase-js returns `permission denied for table ...` **before RLS policies are even evaluated**. Note that `service_role` bypasses RLS but still requires GRANTs.
+
+Whenever a migration creates, edits, or deletes a table (or changes its access patterns), the same migration must include the appropriate `GRANT` and row-level security (RLS) statements, if applicable. Reason about who should have which access — `anon`, `authenticated`, `service_role` — and which operations (SELECT/INSERT/UPDATE/DELETE) each needs. Treat **grant + enable RLS + policies as a single unit**:
+
+```sql
+-- Grants: scope to the roles/operations this table actually needs
+grant select on public.your_table to anon;                                  -- only if publicly readable
+grant select, insert, update, delete on public.your_table to authenticated; -- per access needs
+grant select, insert, update, delete on public.your_table to service_role;
+
+-- If the table has identity/serial columns:
+grant usage, select on all sequences in schema public to authenticated, service_role;
+
+-- RLS: grants control whether a role can touch the table at all;
+-- RLS controls which rows it can see/modify
+alter table public.your_table enable row level security;
+
+drop policy if exists "users can read their own rows" on public.your_table;
+create policy "users can read their own rows"
+  on public.your_table
+  for select
+  to authenticated
+  using (auth.uid() = user_id);
+```
+
+The corresponding `.down.sql` must `REVOKE`/`DROP POLICY` (in reverse order) as part of its rollback.
+
 ### Supabase Types
 
 Generate TypeScript types from your Supabase schema:
