@@ -48,7 +48,7 @@ At the start of every turn, before the first tool call (exploring, running comma
 
 Be liberal with calling tools, CLI commands, and MCP servers to make changes and to diagnose and solve problems. This is particularly true when diagnosing build or deploy failures.
 
-- **Reach for the platform's MCP server / CLI.** This repo deploys to Vercel (web) and Railway (api) — install and use their MCP servers (if not already installed) when diagnosing deploys. Analogously for Figma, Framer, AWS, GCP, Azure, Supabase, Datadog, etc. if the project uses them.
+- **Reach for the platform's MCP server / CLI.** This repo deploys to Vercel (web) and Railway (api) — install and use their MCP servers (if not already installed) when diagnosing deploys. Analogously for Figma, Framer, AWS, GCP, Azure, Supabase, Datadog, etc. if the project uses them. The repo-root `.mcp.json` preconfigures the Vercel, Railway, and Supabase MCP servers (Supabase runs read-only and needs `SUPABASE_ACCESS_TOKEN` in your environment).
 - **Destructive actions still require approval.** Be liberal with read-only, diagnostic, and safely reversible actions — but always ask for the user's approval before executing destructive actions (deletes, rollbacks, production config/env changes, force operations, etc.).
 - **Suggest `/goal` for goal-driven runs.** When a task is the kind that should run until done (e.g., fully fixing a deploy failure), suggest that the user can give the `/goal` slash-command to command you to keep working until the goal is reached.
 
@@ -212,6 +212,8 @@ apps/api/
 │   ├── middleware/
 │   │   ├── cors.ts              # CORS configuration with localhost passthrough
 │   │   └── errorHandler.ts      # Centralized error handling (400s, ZodError, 500)
+│   ├── prompts/
+│   │   └── index.ts             # LLM prompts (codebase source of truth) + getPrompt/compilePrompt
 │   ├── trpc/
 │   │   ├── init.ts              # tRPC context (req/res), createRouter, publicProcedure, middleware
 │   │   ├── middleware.ts        # Auth middleware (authenticatedProcedure, adminProcedure, etc.)
@@ -223,7 +225,7 @@ apps/api/
 │   │       ├── redis.ts         # redis.test, redis.cacheSet, redis.cacheGet, redis.cacheDelete
 │   │       └── supabase.ts      # supabase.test query
 │   ├── services/
-│   │   ├── langfuse.ts          # initLangfuse/getLangfuse/isLangfuseAvailable/getPrompt
+│   │   ├── langfuse.ts          # initLangfuse/getLangfuse/isLangfuseAvailable (tracing only)
 │   │   ├── redis.ts             # initRedis/closeRedis/getRedisClient/isRedisAvailable
 │   │   ├── supabase.ts          # initSupabase/getSupabaseClient/isSupabaseAvailable
 │   │   └── telemetry.ts         # OpenTelemetry SDK with LangfuseSpanProcessor
@@ -355,9 +357,7 @@ When Langfuse is configured in this repo, then:
 
 ### Langfuse Integration (Optional — Setup & AI SDK Patterns)
 
-[Langfuse](https://langfuse.com/) provides observability for LLM applications: prompt management, tracing, and session tracking.
-
-> **Note:** per the policy above, this repo uses Langfuse for **tracing and sessions only** — prompts belong in the codebase. The `getPrompt` / `GET /langfuse/prompts/:name` scaffold described below demonstrates the Langfuse SDK but should not be used to store or fetch production prompts.
+[Langfuse](https://langfuse.com/) provides observability for LLM applications. Per the policy above, this template uses it for **tracing and session tracking only** — prompts live in the codebase at `apps/api/src/prompts/` (the `getPrompt` helper there handles `{{variable}}` interpolation), never in Langfuse prompt management.
 
 **Setup:**
 
@@ -373,11 +373,12 @@ When Langfuse is configured in this repo, then:
 
 **Features:**
 
-- `src/services/langfuse.ts` — Manages prompts and gracefully degrades if keys are missing
+- `src/prompts/index.ts` — LLM prompts (codebase source of truth) with a registry, `{{variable}}` interpolation, and a typed `getPrompt`
+- `src/services/langfuse.ts` — Langfuse client init for tracing/sessions; gracefully degrades if keys are missing
 - `src/services/telemetry.ts` — OpenTelemetry SDK with LangfuseSpanProcessor (auto-captures AI SDK spans)
-- `GET /langfuse/test` — Verify Langfuse connectivity
-- `GET /langfuse/prompts/:name?context=X&query=Y` — Fetch and render prompts with variable substitution (`{{variable}}`)
-- `POST /langfuse/trace-example` — Runnable scaffold: Vercel AI SDK + Claude Haiku + tracing + sessions
+- `langfuse.test` (tRPC query) — Verify Langfuse connectivity
+- `langfuse.getPrompt` (tRPC query) — Fetch and render a codebase prompt with variable substitution; works whether or not Langfuse is configured
+- `langfuse.traceExample` (tRPC mutation) — Runnable scaffold: Vercel AI SDK + Claude Haiku + tools + tracing + sessions + a prompt-caching breakpoint to copy
 
 **AI SDK + Langfuse tracing pattern:**
 
@@ -405,10 +406,16 @@ const getCurrentWeather = tool({
     city: z.string().describe("The city to get weather for"),
   }),
   execute: async ({ city }) => ({ city, temperature: 68, condition: "Sunny" }),
+  // Prompt-caching breakpoint on the LAST tool (tools render first in the prompt,
+  // so one breakpoint covers all preceding tools). Engages once the prefix exceeds
+  // the model's minimum cacheable size. Verify via result.providerMetadata?.anthropic.
+  providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } },
 });
 
-// sessionId from request body — groups all spans into one Langfuse session
-const traceAttrs = sessionId ? { sessionId: String(sessionId) } : {};
+// Every call gets a Langfuse session — fall back to a generated ID when the
+// client doesn't supply one, so no LLM call is session-less
+const effectiveSessionId = sessionId ? String(sessionId) : `anon-${crypto.randomUUID()}`;
+const traceAttrs = { sessionId: effectiveSessionId };
 
 await startActiveObservation("my-llm-call", async (span) => {
   span.update({ input: { prompt } }); // annotate the Langfuse observation
@@ -478,10 +485,11 @@ result.pipeTextStreamToResponse(res);
 
 ```bash
 # Requires ANTHROPIC_API_KEY in apps/api/.env
-curl -X POST http://localhost:8000/langfuse/trace-example \
+curl -X POST http://localhost:8000/trpc/langfuse.traceExample \
   -H "Content-Type: application/json" \
+  -H "x-trpc-source: curl" \
   -d '{"prompt": "What'\''s the weather in Paris?", "sessionId": "my-session-123"}'
-# Returns: { text, usage, toolCalls: [{ tool, input, output }], langfuseTraced }
+# Returns: { text, usage, toolCalls: [{ tool, input, output }], sessionId, langfuseTraced }
 ```
 
 All Langfuse features are **optional** and gracefully degrade if not configured.

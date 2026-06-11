@@ -4,7 +4,8 @@ import { TRPCError } from '@trpc/server';
 import { generateText, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
 import { getEnvironment } from '@/config/environment.js';
-import { getLangfuse, getPrompt, isLangfuseAvailable } from '@/services/langfuse.js';
+import { getPrompt } from '@/prompts/index.js';
+import { getLangfuse, isLangfuseAvailable } from '@/services/langfuse.js';
 import { createRouter, publicProcedure } from '@/trpc/init.js';
 import { PromptInputSchema, TraceExampleInputSchema } from '@/types/index.js';
 
@@ -22,6 +23,12 @@ const getCurrentWeather = tool({
     condition: 'Partly cloudy',
     humidity: '62%',
   }),
+  // Prompt-caching breakpoint on the LAST tool: tools render first in the prompt,
+  // so one breakpoint here covers every preceding tool definition. It only engages
+  // once the prefix exceeds the model's minimum cacheable size (~4096 tokens on
+  // Haiku 4.5) — kept in this scaffold as the pattern to copy for real prompts.
+  // Verify hits via result.providerMetadata?.anthropic (not result.usage).
+  providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
 });
 
 export const langfuseRouter = createRouter({
@@ -38,23 +45,18 @@ export const langfuseRouter = createRouter({
     };
   }),
 
-  getPrompt: publicProcedure.input(PromptInputSchema).query(async ({ input }) => {
-    if (!isLangfuseAvailable()) {
-      return {
-        langfuseAvailable: false,
-        message: 'Langfuse not available',
-        promptName: input.name,
-      };
-    }
-
-    const { text, promptObj } = await getPrompt(input.name, input.variables);
+  // Prompts are stored in the codebase (src/prompts/), not in Langfuse — so this
+  // works regardless of whether Langfuse is configured.
+  getPrompt: publicProcedure.input(PromptInputSchema).query(({ input }) => {
+    const { text, name, found } = getPrompt(input.name, input.variables);
 
     return {
-      langfuseAvailable: true,
-      promptName: input.name,
+      source: 'codebase' as const,
+      promptName: name,
+      requestedName: input.name,
+      found,
       prompt: text,
       variables: input.variables,
-      promptObj: promptObj ? { name: promptObj.name, version: promptObj.version } : null,
     };
   }),
 
@@ -70,7 +72,10 @@ export const langfuseRouter = createRouter({
 
     const { prompt, sessionId } = input;
     const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
-    const traceAttrs = sessionId ? { sessionId: String(sessionId) } : {};
+    // All LLM calls are grouped into a Langfuse session (see CLAUDE.md). When the
+    // client doesn't supply a sessionId, generate one so no call is session-less.
+    const effectiveSessionId = sessionId ? String(sessionId) : `anon-${crypto.randomUUID()}`;
+    const traceAttrs = { sessionId: effectiveSessionId };
 
     try {
       let generatedText = '';
@@ -120,7 +125,7 @@ export const langfuseRouter = createRouter({
         text: generatedText,
         usage: usageInfo,
         toolCalls: toolCallsMade,
-        sessionId: sessionId ?? null,
+        sessionId: effectiveSessionId,
         langfuseTraced: isLangfuseAvailable(),
         model: 'claude-haiku-4-5',
       };

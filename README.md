@@ -11,7 +11,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 - **Supabase Integration**: PostgreSQL database with built-in auth, realtime, and storage
 - **Redis Integration**: Built-in caching with Railway-optimized connection settings
 - **Vercel AI SDK**: First-class LLM integration with Claude Haiku, streaming, and tool calls
-- **Langfuse Integration**: Optional LLM observability for prompts, tracing, and sessions
+- **Langfuse Integration**: Optional LLM observability for tracing and sessions (prompts live in the codebase, not Langfuse)
 - **PostHog Analytics**: Optional web analytics and product analytics with managed reverse proxy support
 - **Deployment Ready**: Pre-configured for Vercel (frontend) and Railway (backend + Redis)
 - **Monorepo Structure**: Organized multi-service architecture
@@ -39,7 +39,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 - **Database**: Supabase (PostgreSQL with auth, realtime, storage)
 - **Caching**: Redis (ioredis with Railway-optimized settings)
 - **AI**: Vercel AI SDK (`ai` + `@ai-sdk/anthropic`) — `generateText`, `streamText`, tool calls
-- **Observability**: Langfuse (optional: prompt management, tracing, sessions)
+- **Observability**: Langfuse (optional: tracing, sessions; prompts live in the codebase at `apps/api/src/prompts/`)
 - **Deployment**: Railway (API + Redis plugin)
 
 ## Project Structure
