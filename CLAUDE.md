@@ -38,6 +38,10 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 
 ## Development Guidelines
 
+### Respond in Words Before Acting
+
+At the start of every turn, before the first tool call (exploring, running commands, editing files), give a brief response in words: confirm what was understood, validate the approach, or push back if the request seems wrong — then start working. One or two sentences is enough; this is an FYI/acknowledgment, not a plan. It applies even when work begins immediately afterward — never open a turn with silent tool use.
+
 ### Code Quality Standards
 
 - **Always test after every change** - Run the application and verify functionality works
@@ -57,8 +61,15 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
   - Optional chaining: `obj?.property?.nested`
   - Nullish coalescing: `value ?? defaultValue`
 - Prefer `const` over `let`, never use `var`
-- Use async/await instead of promise chains
+- Use async/await instead of promise chains (prefer `async`/`await` over `.then()`)
 - Prefer functional array methods: `map`, `filter`, `reduce`
+- **Arrow notation**: use arrow function notation whenever possible — with the understanding that sometimes (e.g. component lifecycle functions) standard `function` notation is necessary
+- **String union types** — derive them from a `const` array so the values also exist at runtime:
+  - Bad: `type Val = 'a' | 'b' | 'c'`
+  - Good: `const vals = ['a', 'b', 'c'] as const; type Val = (typeof vals)[number];`
+- **Handle empties deliberately**: make sure all empty strings, empty lists, empty objects, `null`s, and `undefined`s are handled correctly. Make sure `||` and `??` (and similar operators) have exactly the right scope — not too tight, not too lax (`||` also coerces `''`, `0`, and `false`; `??` only `null`/`undefined`)
+- **Function names start with a verb** for every function that is not a React function component (predicates may use `is`/`has`/`can` prefixes). This conforms to function naming conventions
+- **File size**: there should be few files with >700 lines of code. Whenever a file exceeds 700 lines, consider whether breaking it up would improve organization and separation of concerns — feel free to create new files, folders, and subfolders with names that make sense
 
 ### Express/Node.js Style
 
@@ -126,6 +137,10 @@ git commit -m "Add <new-package> dependency"
 - Use descriptive, semantic names
 - Keep components focused and single-purpose
 - Follow accessibility best practices (ARIA labels, semantic HTML)
+- **Boolean prop names** — props whose value is a boolean (or whose handler takes or returns a boolean) should start with `is`, `has`, `was`, `had`, `can`, `did`, `could`, or `should` (e.g. `isOpen`, `hasError`, `wasEdited`, `canEdit`, `didSubmit`, `couldRetry`, `shouldRender`)
+- **Prefer shadcn components**: prefer shadcn (or at least shadcn-inspired) components, to make the UI components more readable, composable, and extensible
+- **Frontend contrast (WCAG)**: regardless of light mode or dark mode, all text must be visible on its background color, and all contrast must meet WCAG requirements
+- **Supabase + Zod**: when a project uses Supabase generated types and Zod schemas, use the Supabase generated types and Zod schemas (with `safeParse`) as much as possible
 
 ### API Development
 
@@ -238,6 +253,11 @@ vercel.json            # Vercel deployment config for web app (simplified)
 - Don't silently swallow errors
 - Return proper HTTP status codes from APIs
 
+### Security Posture
+
+- **Least privilege (tightest scope)**: always keep security to the tightest (minimal scope) possible that still accomplishes all our goals. Grant exactly the access needed and nothing more. This applies to Supabase RLS/policies, GRANTs, and roles, as well as to code (API surface, permissions, env access, etc.).
+- **Fail-closed, not fail-open**: when an error occurs, the default must be to block access rather than grant it. Never let a failure path fall through to allowing an action; on any uncertainty or error, deny.
+
 ### Performance Considerations
 
 - Lazy load components when appropriate
@@ -248,6 +268,15 @@ vercel.json            # Vercel deployment config for web app (simplified)
 - Use database indexes for common queries
 - Cache API responses when appropriate
 
+### Aggressive Prefetching (Pages & Queries)
+
+In web apps with a small number of pages, prefetch aggressively so navigation feels instant. "Prefetch" always means **both** the frontend (route/components/bundle) **and** warming the underlying data queries — prefetching the UI shell without its data is only half the job. All prefetching must be background, deferred, and non-blocking: it must never delay or compete with rendering the page the user is actually on.
+
+- **Top-level pages**: when the user lands on any top-level page, prefetch all the other top-level pages.
+- **Tabs**: when the user lands on a top-level page that has tabs, prefetch all the other tabs of that page.
+- **Table rows (hover intent)**: on a page/tab with a table, if the user hovers over a row for more than 200ms, prefetch the result of clicking that row.
+- **Paginated tables**: when the user is on one page of a paginated table, prefetch the contents and queries of the next page.
+
 ### Git Workflow
 
 - Make small, focused commits
@@ -255,6 +284,23 @@ vercel.json            # Vercel deployment config for web app (simplified)
 - Don't commit untested code
 - Keep commits atomic and reversible
 - Use conventional commit format when possible
+
+**Starting new feature work:**
+
+- If on the `main` branch and asked to build a new feature, do not start working on `main`. First pull the latest `origin/main`, then check out a new branch (following the branch naming convention below), with the end goal of opening a new PR.
+
+**Branch naming:**
+
+- When creating a new git branch on the human contributor's behalf, prefix the name with their nickname `bryan` (the human contributor, not the agent/assistant), followed by a slash and a short kebab-case description (e.g. `bryan/add-export-button`).
+
+**Pull requests:**
+
+- When opening a new PR on the human contributor's behalf, assign it to them (e.g. `gh pr create --assignee @me`, where `@me` resolves to the authenticated GitHub user — the human contributor, not the agent/assistant).
+
+**Git history & merging:**
+
+- **Never squash commits or otherwise rewrite git history unless explicitly authorized.** That includes squash-merges, interactive-rebase squashing, `git commit --amend` on already-pushed commits, and force-pushing. Rewriting history is dangerous — it discards commits and context and can clobber work.
+- When integrating a branch, **prefer a normal merge commit** (over squash- or rebase-merge) whenever possible.
 
 ## Common Pitfalls to Avoid
 
@@ -518,6 +564,8 @@ CORS is configured in `src/middleware/cors.ts`. The middleware:
 
 Migration files live in `apps/shared/supabase/migrations/`.
 
+These rules apply to all **future** migrations. Do not retrofit legacy migration files (any that lack the `.up.sql`/`.down.sql` pattern) to these conventions — leave them as-is.
+
 **Never run migrations programmatically.** The SQL files are documentation only — never execute them against the database (no `psql`, no `supabase db push`, no programmatic execution of any kind). The engineer will manually run the correct migrations as queries in the Supabase web UI (SQL Editor). When planning schema changes, the deliverable is the migration files themselves, not an applied migration.
 
 **Two files per migration: `.up.sql` and `.down.sql`**
@@ -526,6 +574,7 @@ Migration files live in `apps/shared/supabase/migrations/`.
 - `<name>.down.sql` — manual rollback. It must restore the database as faithfully as possible to the state before the `.up` was run. Sometimes rollback unavoidably deletes data (e.g., dropping a column the up added) — that's acceptable.
 - If the `.up` performs multiple operations in sequence, the `.down` must apply the "undo" operations in **reverse order** so the rollback unwinds cleanly.
 - When a migration file is created, edited, or deleted, keep its `.up.sql`/`.down.sql` pair in sync.
+- Every `.down.sql` file (migrations and seeds alike) must start with a comment at the top of the file stating that it must be kept in sync with its corresponding `.up.sql` file.
 
 **Idempotency** — all migration SQL must be safe to run more than once:
 
