@@ -145,3 +145,19 @@ When starting a new project with this template:
 **Alternatives Considered:** `npx @tailwindcss/upgrade` codemod — codebase is small enough that a manual, audited migration was safer and produced a cleaner diff.
 **Impact:** No visual changes intended. Verified: all borders already specify explicit colors (v4 default changed to currentColor), `ring` usage already has explicit width/color (v4 default ring changed 3px→1px), no removed-in-v4 utilities (`bg-opacity-*`, `flex-shrink-*`, etc.) were in use. Placeholder text now uses v4 default (currentColor at 50%) instead of gray-400 — acceptable, near-identical. Browser floor rises to Safari 16.4+/Chrome 111+/Firefox 128+.
 **Learnings:** Next 16/Turbopack loads `postcss.config.ts` fine with `@tailwindcss/postcss`. `@theme inline` only emits theme tokens actually used in markup. `postcss-load-config` types must be a direct devDep once Tailwind v3 is gone.
+
+## 2026-06-11 16:32 PT - Upgrade all packages to latest (TypeScript 6, ESLint 10, Node 24 LTS)
+
+**Type:** Decision | Implementation
+**Change:** Upgraded every dependency across all workspaces to its latest version, including breaking majors: TypeScript 5.9.3 → 6.0.3 (all apps), ESLint 9 → 10.4.1, lint-staged 16 → 17.0.7, @supabase/ssr 0.10.2 → 0.12.0, @types/node 22 → 25 (web), Node 22 → 24 LTS (Dockerfile `node:24-alpine`, `engines` >=24). Minors/patches: Next 16.2.9, React 19.2.7, supabase-js 2.108.1, tRPC 11.17.0, TanStack Query 5.101.0, Zod 4.4.3, Express 5.2.1, ai 6.0.202, @langfuse/\* 5.4.1, @opentelemetry/sdk-node 0.219.0, ioredis 5.11.1, Biome 2.4.16, prettier 3.8.4, sql-formatter 15.8.1, posthog-js/node, tsx, tsc-alias, etc. Tailwind 4.3.0 was already latest.
+**Rationale:** Stay current; TS 6.0 is the final JS-based compiler before the Go-native TS 7. Node 24 is Active LTS (until Apr 2028) and Vercel's default; Railway uses our Dockerfile so the base image controls the runtime.
+**Alternatives Considered:** Holding TS at 5.9 (typescript-eslint caps at <6.1, but eslint-config-next allows >=3.3 and Next 16 has no TS peer dep — no blocker). `npm audit fix --force` for Next's internally-pinned postcss <8.5.10 (moderate, build-time) — rejected, it would downgrade Next to v9; upstream issue.
+**Impact:**
+
+- TS 6 migration: `module`/`moduleResolution` `esnext`/`node` → `nodenext` in apps/api and apps/cron tsconfigs; removed deprecated `baseUrl` (paths now relative to tsconfig); cron needed explicit `"types": ["node"]` and a direct `@types/node` devDep.
+- `apps/api/src/services/redis.ts`: `import Redis from 'ioredis'` → `import { Redis } from 'ioredis'` (CJS default-import typing changes under nodenext).
+- Fixed 21 pre-existing Biome `useBlockStatements` violations (brace-less single-line `if`s) across api/web so `lint:js:check` is green.
+- `npm audit fix` cleared path-to-regexp/picomatch/qs advisories in api and web.
+- Verified: `npm run typecheck`, api/web/cron builds, Biome check all green; API smoke-boots with `/health` → `{"status":"ok"}`, Redis connects, graceful shutdown works.
+
+**Learnings:** TS 6.0 defaults `strict: true` and no longer honors the legacy `node` (node10) resolution without `ignoreDeprecations`; `nodenext` is the right setting for ESM packages that already use `.js` import extensions. lint-staged 17 requires Node >=22.22.1 and git >=2.32. @supabase/ssr 0.12 tightened its supabase-js peer to ^2.108.0 — bump them together.

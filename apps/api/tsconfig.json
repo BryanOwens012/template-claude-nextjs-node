@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "esnext",
+    "module": "nodenext",
     "lib": ["ES2022", "DOM"],
     "outDir": "./dist",
     "rootDir": "..",
@@ -13,10 +13,9 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "types": ["node"],
-    "baseUrl": "./",
-    "paths": { "@/*": ["src/*"], "@shared/*": ["../shared/*"] }
+    "paths": { "@/*": ["./src/*"], "@shared/*": ["../shared/*"] }
   },
   "include": ["src/**/*", "../shared/supabase/**/*"],
   "exclude": ["node_modules", "dist"]

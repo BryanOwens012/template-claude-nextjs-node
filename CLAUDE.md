@@ -11,13 +11,13 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 - **Frontend**:
   - Next.js 16+ (App Router, React Server Components)
   - React 19
-  - TypeScript 5+
+  - TypeScript 6+
   - Tailwind CSS v4 (CSS-first config: `@theme` in `globals.css`, no `tailwind.config.ts`; PostCSS plugin is `@tailwindcss/postcss`, autoprefixer not needed)
   - Radix UI, shadcn/ui
   - TanStack Query v5
 
 - **Backend**:
-  - Express 5 (Node.js 22+)
+  - Express 5 (Node.js 24+)
   - TypeScript with ESM modules ("type": "module")
   - tRPC v11 for end-to-end type-safe API procedures
   - Zod for runtime validation and type safety
@@ -32,7 +32,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 ### Development Philosophy
 
 - **Code Quality First**: Always test after changes, fix all TypeScript errors before committing
-- **Modern Syntax**: Use latest ES6+ and Node.js 22+ features
+- **Modern Syntax**: Use latest ES6+ and Node.js 24+ features
 - **Documentation**: Log significant decisions in docs/AGENTS_APPENDLOG.md (append to that file only; don't read anything in it beyond the final/trailing 20 lines)
 - **AI-Assisted**: Leverage AI for rapid development while maintaining high standards
 
@@ -225,7 +225,7 @@ apps/api/
 │       └── .gitkeep
 ├── railway.json         # Railway deployment config
 ├── .railwayignore       # Railway ignore patterns
-├── nixpacks.toml        # Build configuration (Node.js 22)
+├── nixpacks.toml        # Build configuration (Node.js 24)
 └── .env.example         # Environment variable template
 ```
 
@@ -276,6 +276,33 @@ In web apps with a small number of pages, prefetch aggressively so navigation fe
 - **Tabs**: when the user lands on a top-level page that has tabs, prefetch all the other tabs of that page.
 - **Table rows (hover intent)**: on a page/tab with a table, if the user hovers over a row for more than 200ms, prefetch the result of clicking that row.
 - **Paginated tables**: when the user is on one page of a paginated table, prefetch the contents and queries of the next page.
+
+### Aggressive Prompt Caching (LLM Calls)
+
+For **all LLM calls, regardless of provider**, as long as the provider offers prompt caching, always be looking for opportunities to implement aggressive prompt caching. Prompt caching dramatically cuts cost (cached input tokens are ~50–90% cheaper depending on provider) and latency (often up to ~80% faster time-to-first-token). Whenever you write or review code that calls an LLM, check whether the prompt is structured to maximize cache hits — and restructure it if not.
+
+**The one invariant: caching is an exact prefix match**
+
+Every provider's cache keys on the exact bytes of the prompt prefix. A single byte change anywhere in the prefix invalidates everything after it. So **order prompt content by stability**:
+
+1. **Static first**: tool definitions, system prompt, few-shot examples, large reference documents — frozen, byte-identical across requests.
+2. **Per-session next**: conversation history (append-only — never rewrite earlier turns).
+3. **Volatile last**: the user's current question, timestamps, request-specific data — after the last cache boundary.
+
+**Rules**
+
+- **Freeze the system prompt.** Never interpolate timestamps, dates, UUIDs, request IDs, or per-user values into the system prompt or tool definitions — that invalidates the cache on every request. Inject dynamic context late in the message list instead.
+- **Serialize deterministically.** Sort JSON keys, keep tool lists in a stable order, and never iterate unordered sets/maps when building the prompt. Don't add/remove/reorder tools or switch models mid-conversation — both force a full cache rebuild.
+- **Multi-turn conversations**: append new turns to the end and resend the identical history so each request reuses the prior conversation's cached prefix.
+- **Verify with usage metrics, don't assume.** Check the response usage fields: Anthropic `usage.cache_read_input_tokens`, OpenAI `usage.prompt_tokens_details.cached_tokens`. Zero across repeated similar requests means a silent invalidator (timestamp in the prompt, unsorted JSON, varying tool set) — diff the rendered prompt bytes between two requests to find it.
+- **Mind minimum sizes and TTLs.** Caches require a minimum prefix (~1024+ tokens, model-dependent) and expire after minutes of inactivity (Anthropic 5 min default / 1 h option; OpenAI ~5–10 min). For bursty traffic, consider a longer TTL or pre-warming; for continuous traffic, regular requests keep the cache warm.
+
+**Provider notes**
+
+- **Anthropic**: explicit — add `cache_control: {type: "ephemeral"}` breakpoints (max 4) at stability boundaries; writes cost 1.25× (5 min) / 2× (1 h), reads ~0.1×.
+- **OpenAI**: automatic for prompts ≥1024 tokens (no code change), but only pays off when the prefix is byte-stable — structure still matters.
+- **Google Gemini**: implicit caching on 2.5+ models, plus an explicit cache API for large shared contexts.
+- Other providers/gateways (Bedrock, Vertex, OpenRouter, etc.) generally proxy the underlying provider's caching — same prefix-stability rules apply.
 
 ### Git Workflow
 
@@ -422,7 +449,7 @@ To add additional backend services:
 2. Add service-specific configuration files:
    - `railway.json` - Deployment config
    - `.railwayignore` - Exclude patterns
-   - `nixpacks.toml` - Build config (Node.js 22+)
+   - `nixpacks.toml` - Build config (Node.js 24+)
    - `package.json` and `package-lock.json` - Dependencies
    - `.env.example` - Environment template
 3. Create new Railway service in your project

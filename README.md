@@ -6,7 +6,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 
 - **Authentication**: Supabase Auth with email+password, Google OAuth, and Microsoft OAuth (all free)
 - **Modern Frontend**: Next.js 16 with React 19, TypeScript, Tailwind CSS v4, Radix UI, shadcn/ui
-- **Robust Backend**: Express 5 + tRPC v11 with Node.js 22+, TypeScript, end-to-end type safety
+- **Robust Backend**: Express 5 + tRPC v11 with Node.js 24+, TypeScript, end-to-end type safety
 - **End-to-End Type Safety**: tRPC v11 + TanStack Query v5 for type-safe API calls with automatic caching
 - **Supabase Integration**: PostgreSQL database with built-in auth, realtime, and storage
 - **Redis Integration**: Built-in caching with Railway-optimized connection settings
@@ -24,7 +24,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 
 - **Framework**: Next.js 16
 - **UI Library**: React 19
-- **Language**: TypeScript 5+
+- **Language**: TypeScript 6+
 - **Styling**: Tailwind CSS v4 (CSS-first configuration via `@theme` in `globals.css`)
 - **UI Components**: Radix UI, shadcn/ui
 - **Data Fetching**: TanStack Query v5 (via tRPC)
@@ -33,7 +33,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 ### Backend
 
 - **Framework**: Express 5
-- **Runtime**: Node.js 22+
+- **Runtime**: Node.js 24+
 - **Language**: TypeScript with ESM modules
 - **API Layer**: tRPC v11 (type-safe procedures) + Zod (schemas + inferred types)
 - **Database**: Supabase (PostgreSQL with auth, realtime, storage)
@@ -122,7 +122,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 
 ### Prerequisites
 
-- Node.js 22.0.0 or higher
+- Node.js 24.0.0 or higher
 - npm or yarn
 - [Supabase account](https://supabase.com) (free tier available)
 
@@ -352,7 +352,7 @@ Each service under `apps/` can be deployed independently to Railway.
 
 - `railway.json` - Deployment configuration
 - `.railwayignore` - Excludes development files and caches
-- `nixpacks.toml` - Build configuration (Node.js 22, npm ci + npm run build)
+- `nixpacks.toml` - Build configuration (Node.js 24, npm ci + npm run build)
 - `package.json` / `package-lock.json` - Node.js dependencies for this service
 
 The `railway.json` is configured for:
@@ -376,7 +376,7 @@ To add additional backend services:
 2. Add service-specific configuration files:
    - `railway.json` - Deployment config for this service
    - `.railwayignore` - Files to exclude from deployment
-   - `nixpacks.toml` - Build configuration (Node.js 22)
+   - `nixpacks.toml` - Build configuration (Node.js 24)
    - `package.json` / `package-lock.json` - Node.js dependencies
    - `.env.example` - Environment variable template
 3. Create a new Railway service in your project
