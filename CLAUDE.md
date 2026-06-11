@@ -223,9 +223,7 @@ apps/api/
 │   ├── types.ts                 # Regenerate with supabase CLI
 │   └── migrations/
 │       └── .gitkeep
-├── railway.json         # Railway deployment config
-├── .railwayignore       # Railway ignore patterns
-├── nixpacks.toml        # Build configuration (Node.js 24)
+├── Dockerfile           # Docker build (node:24-alpine, used by Railway)
 └── .env.example         # Environment variable template
 ```
 
@@ -233,6 +231,7 @@ apps/api/
 
 ```
 vercel.json            # Vercel deployment config for web app (simplified)
+railway.json           # Railway deployment config (Dockerfile builder → apps/api/Dockerfile)
 .vercelignore          # Vercel ignore patterns (build only apps/web/)
 ```
 
@@ -417,19 +416,18 @@ The `vercel.json` at the root is simplified:
 
 ### Railway (Backend API)
 
-Each service under `apps/` can be deployed independently with its own configuration files:
+The API deploys via Docker. Configuration files:
 
-- `railway.json` - Deployment configuration
-- `.railwayignore` - Files to exclude from deployment
-- `nixpacks.toml` - Build configuration (Node.js version, build commands)
-- `package.json` and `package-lock.json` - Node.js dependencies for this service
+- `railway.json` (repo root) - Deployment configuration: `DOCKERFILE` builder pointing at `apps/api/Dockerfile`, start command `node dist/api/src/index.js`, restart-on-failure policy
+- `apps/api/Dockerfile` - Build configuration (`node:24-alpine`, `npm ci` + `npm run build`); requires repo-root build context because it copies `apps/shared/` alongside `apps/api/`
+- `apps/api/package.json` and `package-lock.json` - Node.js dependencies for this service
 
 **Setup for API service:**
 
 1. Create new Railway service
 2. Connect repository
-3. **Set root directory to `apps/api`** in Railway service settings
-4. Railway will detect `railway.json` and `nixpacks.toml` in the service directory
+3. **Keep the service root directory at the repo root** so the root `railway.json` is detected and the Dockerfile gets repo-root build context
+4. Railway builds `apps/api/Dockerfile` per the root `railway.json`
 5. Add Redis plugin (Railway will set `REDIS_URL` automatically)
 6. Set environment variables (SUPABASE_URL, SUPABASE_SECRET_KEY, CORS_ORIGINS)
 7. Deploy
@@ -447,14 +445,12 @@ To add additional backend services:
 
 1. Create new service directory under `apps/` (e.g., `apps/worker/`)
 2. Add service-specific configuration files:
-   - `railway.json` - Deployment config
-   - `.railwayignore` - Exclude patterns
-   - `nixpacks.toml` - Build config (Node.js 24+)
+   - `Dockerfile` - Build config (Node.js 24+; copy `apps/shared/` too if the service uses shared types)
    - `package.json` and `package-lock.json` - Dependencies
    - `.env.example` - Environment template
 3. Create new Railway service in your project
 4. Connect same repository
-5. Set root directory to `apps/worker` in Railway settings
+5. Point the service at the new Dockerfile (a service-specific `railway.json` with a `DOCKERFILE` builder, or set the Dockerfile path in the service settings)
 6. Deploy independently
 
 **Example multi-service structure:**
@@ -465,15 +461,15 @@ apps/
 │   ├── package.json
 │   └── ...
 ├── api/              # Express + tRPC API
-│   ├── railway.json
+│   ├── Dockerfile
 │   ├── package.json
 │   └── ...
 ├── worker/           # Background jobs (Node.js + Bull)
-│   ├── railway.json
+│   ├── Dockerfile
 │   ├── package.json
 │   └── ...
 └── websocket/        # WebSocket server (Node.js)
-    ├── railway.json
+    ├── Dockerfile
     ├── package.json
     └── ...
 ```

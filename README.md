@@ -96,9 +96,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 │   │   │   └── types/                # Zod schemas & types
 │   │   ├── package.json
 │   │   ├── tsconfig.json
-│   │   ├── railway.json              # Railway deployment config
-│   │   ├── .railwayignore            # Railway ignore patterns
-│   │   ├── nixpacks.toml             # Nixpacks build config
+│   │   ├── Dockerfile                # Docker build (node:24-alpine, used by Railway)
 │   │   └── .env.example
 │   └── shared/               # Shared assets across services
 │       └── supabase/
@@ -113,6 +111,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 ├── AGENTS.md                 # AI agent entry point (redirects to CLAUDE.md)
 ├── CLAUDE.md                 # Comprehensive development guidelines and best practices
 ├── vercel.json               # Vercel deployment config
+├── railway.json              # Railway deployment config (Dockerfile builder → apps/api)
 ├── .vercelignore             # Vercel ignore patterns
 ├── .gitignore                # Comprehensive ignore patterns
 └── README.md                 # This file
@@ -337,8 +336,8 @@ Each service under `apps/` can be deployed independently to Railway.
 
 1. Create a new service in Railway
 2. Connect your repository (via GitHub integration)
-3. **Set the root directory** to `apps/api` in Railway service settings
-4. Railway will automatically detect `railway.json` and `nixpacks.toml` in the service directory
+3. **Keep the service root directory at the repo root** — the root `railway.json` uses the `DOCKERFILE` builder pointing at `apps/api/Dockerfile`, and the Dockerfile needs repo-root build context to copy `apps/shared/` alongside `apps/api/`
+4. Railway will automatically detect the root `railway.json` and build the Dockerfile
 5. **Add Redis plugin**: Click "New" → "Database" → "Add Redis"
    - Railway will automatically set the `REDIS_URL` environment variable
    - The API is configured with Railway-compatible settings (socket family 0 for IPv6/IPv4 dual-stack)
@@ -348,18 +347,19 @@ Each service under `apps/` can be deployed independently to Railway.
 7. Set other environment variables (CORS_ORIGINS, etc.)
 8. Deploy
 
-**Per-service configuration files in `apps/api/`:**
+**Deployment configuration files:**
 
-- `railway.json` - Deployment configuration
-- `.railwayignore` - Excludes development files and caches
-- `nixpacks.toml` - Build configuration (Node.js 24, npm ci + npm run build)
-- `package.json` / `package-lock.json` - Node.js dependencies for this service
+- `railway.json` (repo root) - Deployment configuration (Dockerfile builder, start command, restart policy)
+- `apps/api/Dockerfile` - Build configuration (`node:24-alpine`, `npm ci` + `npm run build`)
+- `apps/api/package.json` / `package-lock.json` - Node.js dependencies for this service
 
 The `railway.json` is configured for:
 
-- Automatic builds with NIXPACKS
-- Health check endpoint at `/health` (tests both Redis and Supabase)
-- Automatic restarts on failure
+- Docker builds from `apps/api/Dockerfile`
+- Start command `node dist/api/src/index.js`
+- Automatic restarts on failure (up to 10 retries)
+
+The API also exposes a `/health` endpoint (tests both Redis and Supabase) that can be used as a Railway health check.
 
 **Service Configuration:**
 
@@ -374,14 +374,12 @@ To add additional backend services:
 
 1. Create new service directory under `apps/` (e.g., `apps/worker/`)
 2. Add service-specific configuration files:
-   - `railway.json` - Deployment config for this service
-   - `.railwayignore` - Files to exclude from deployment
-   - `nixpacks.toml` - Build configuration (Node.js 24)
+   - `Dockerfile` - Build configuration (Node.js 24; copy `apps/shared/` too if the service uses shared types)
    - `package.json` / `package-lock.json` - Node.js dependencies
    - `.env.example` - Environment variable template
 3. Create a new Railway service in your project
 4. Connect the same repository
-5. Set root directory to `apps/worker` in Railway settings
+5. Point the service at the new Dockerfile (set the config path to a service-specific `railway.json` with a `DOCKERFILE` builder, or set the Dockerfile path in the service settings)
 6. Deploy independently
 
 **Example structure for multiple services:**
@@ -392,15 +390,15 @@ apps/
 │   ├── package.json
 │   └── ...
 ├── api/              # Express + tRPC API service
-│   ├── railway.json
+│   ├── Dockerfile
 │   ├── package.json
 │   └── ...
 ├── worker/           # Background worker service
-│   ├── railway.json
+│   ├── Dockerfile
 │   ├── package.json
 │   └── ...
 └── websocket/        # WebSocket service
-    ├── railway.json
+    ├── Dockerfile
     ├── package.json
     └── ...
 ```
