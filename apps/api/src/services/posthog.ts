@@ -37,7 +37,9 @@ export const captureEvent = (
   event: string,
   properties?: Record<string, unknown>,
 ): void => {
-  if (!posthogClient) return;
+  if (!posthogClient) {
+    return;
+  }
   posthogClient.capture({ distinctId, event, properties });
 };
 
@@ -45,7 +47,9 @@ export const captureEvent = (
  * Shut down the PostHog client gracefully, flushing any queued events.
  */
 export const shutdownPostHog = async (): Promise<void> => {
-  if (!posthogClient) return;
+  if (!posthogClient) {
+    return;
+  }
 
   try {
     await posthogClient.shutdown();

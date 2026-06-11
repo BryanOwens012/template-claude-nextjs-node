@@ -22,10 +22,14 @@ const safeCompareKeys = (a: string, b: string): boolean => {
 };
 
 const isAdminEmail = (email: string): boolean => {
-  if (!email) return false;
+  if (!email) {
+    return false;
+  }
   const env = getEnvironment();
   const domain = env.ADMIN_EMAIL_DOMAIN;
-  if (!domain) return false;
+  if (!domain) {
+    return false;
+  }
   const atIndex = email.lastIndexOf('@');
   return atIndex !== -1 && email.slice(atIndex + 1).toLowerCase() === domain.toLowerCase();
 };
@@ -36,7 +40,9 @@ const isAdminEmail = (email: string): boolean => {
  * excluding code-verifier variants.
  */
 const extractTokenFromCookies = (cookieHeader: string | undefined): string | undefined => {
-  if (!cookieHeader) return undefined;
+  if (!cookieHeader) {
+    return undefined;
+  }
 
   const cookies = cookieHeader.split(';').map((c) => c.trim());
   const tokenPattern = /^sb-.*-auth-token(\.\d+)?$/;

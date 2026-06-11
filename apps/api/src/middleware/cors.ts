@@ -5,12 +5,18 @@ export const corsMiddleware = cors({
   origin: (origin, callback) => {
     const allowedOrigins = getCorsOrigins();
 
-    if (!origin) return callback(null, true); // curl, Postman, server-to-server
+    if (!origin) {
+      return callback(null, true); // curl, Postman, server-to-server
+    }
 
-    if (allowedOrigins === '*') return callback(null, true);
+    if (allowedOrigins === '*') {
+      return callback(null, true);
+    }
 
     const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
-    if (isLocalhost) return callback(null, true);
+    if (isLocalhost) {
+      return callback(null, true);
+    }
 
     if (Array.isArray(allowedOrigins) && allowedOrigins.includes(origin)) {
       return callback(null, true);

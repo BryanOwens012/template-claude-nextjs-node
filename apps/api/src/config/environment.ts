@@ -24,7 +24,9 @@ const EnvironmentSchema = z.object({
 let environment: z.infer<typeof EnvironmentSchema> | null = null;
 
 export const getEnvironment = () => {
-  if (environment) return environment;
+  if (environment) {
+    return environment;
+  }
 
   const result = EnvironmentSchema.safeParse(process.env);
 
@@ -42,6 +44,8 @@ export const getEnvironment = () => {
 
 export const getCorsOrigins = (): string | string[] => {
   const env = getEnvironment();
-  if (env.CORS_ORIGINS === '*') return '*';
+  if (env.CORS_ORIGINS === '*') {
+    return '*';
+  }
   return env.CORS_ORIGINS.split(',').map((origin) => origin.trim());
 };

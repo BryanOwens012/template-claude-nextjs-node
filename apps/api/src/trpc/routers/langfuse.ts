@@ -125,7 +125,9 @@ export const langfuseRouter = createRouter({
         model: 'claude-haiku-4-5',
       };
     } catch (error) {
-      if (error instanceof TRPCError) throw error;
+      if (error instanceof TRPCError) {
+        throw error;
+      }
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
         message: `AI call failed: ${error instanceof Error ? error.message : String(error)}`,

@@ -11,10 +11,14 @@ import { isAdminEmail } from '@/lib/utils/admin';
  * This is a server action — callable from client components and Route Handlers.
  */
 export const isEmailInvited = async (email: string): Promise<boolean> => {
-  if (isAdminEmail(email)) return true;
+  if (isAdminEmail(email)) {
+    return true;
+  }
 
   const invitedEmails = process.env.INVITED_EMAILS ?? '';
-  if (!invitedEmails.trim()) return true; // Open signup mode
+  if (!invitedEmails.trim()) {
+    return true; // Open signup mode
+  }
 
   const list = invitedEmails
     .split(',')

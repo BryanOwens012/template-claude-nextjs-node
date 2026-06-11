@@ -72,7 +72,9 @@ export const getPrompt = async (
 
 // Graceful shutdown
 export const closeLangfuse = async () => {
-  if (!langfuseClient) return;
+  if (!langfuseClient) {
+    return;
+  }
 
   try {
     await Promise.race([
