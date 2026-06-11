@@ -1,5 +1,7 @@
 # Claude Code Instructions
 
+As a reference, this file is organized as follows: **Project Overview** → what this template is and its tech stack; **Development Guidelines** → how to behave and work (respond in words first; be liberal with tools/MCPs), code quality, TS/React/Express style, dependency management, code organization, testing, security posture, performance & prefetching, and git workflow; **LLM Calls** → prompt caching doctrine and Langfuse tracing/prompt policy + integration patterns; **Common Pitfalls** → frequent mistakes to avoid; **Decision Logging** → the AGENTS_APPENDLOG discipline; **Deployment** → Vercel (web) and Railway (api); **Project-Specific Patterns** → env vars, tRPC integration, CORS, SQL migrations, Supabase types/keys; **Verification Checklist** → pre-completion gates; **Agent Session Logging** + **Agent Collaboration** → multi-agent etiquette; **Template Customization** → how to adapt this template to a new project.
+
 ## Project Overview
 
 This is a Next.js + Node.js template for rapidly spinning up full-stack applications.
@@ -23,7 +25,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
   - Zod for runtime validation and type safety
   - ioredis for caching
   - Supabase JS client (secret key for server-side operations)
-  - Langfuse for LLM observability (optional: prompts, tracing, sessions)
+  - Langfuse for LLM observability (optional: tracing, sessions; prompts live in the codebase, not Langfuse)
 
 - **Deployment**:
   - Frontend: Vercel (auto-configured via vercel.json)
@@ -41,6 +43,14 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 ### Respond in Words Before Acting
 
 At the start of every turn, before the first tool call (exploring, running commands, editing files), give a brief response in words: confirm what was understood, validate the approach, or push back if the request seems wrong — then start working. One or two sentences is enough; this is an FYI/acknowledgment, not a plan. It applies even when work begins immediately afterward — never open a turn with silent tool use.
+
+### Tools, CLIs & MCP Servers (Be Liberal)
+
+Be liberal with calling tools, CLI commands, and MCP servers to make changes and to diagnose and solve problems. This is particularly true when diagnosing build or deploy failures.
+
+- **Reach for the platform's MCP server / CLI.** This repo deploys to Vercel (web) and Railway (api) — install and use their MCP servers (if not already installed) when diagnosing deploys. Analogously for Figma, Framer, AWS, GCP, Azure, Supabase, Datadog, etc. if the project uses them.
+- **Destructive actions still require approval.** Be liberal with read-only, diagnostic, and safely reversible actions — but always ask for the user's approval before executing destructive actions (deletes, rollbacks, production config/env changes, force operations, etc.).
+- **Suggest `/goal` for goal-driven runs.** When a task is the kind that should run until done (e.g., fully fixing a deploy failure), suggest that the user can give the `/goal` slash-command to command you to keep working until the goal is reached.
 
 ### Code Quality Standards
 
@@ -276,33 +286,6 @@ In web apps with a small number of pages, prefetch aggressively so navigation fe
 - **Table rows (hover intent)**: on a page/tab with a table, if the user hovers over a row for more than 200ms, prefetch the result of clicking that row.
 - **Paginated tables**: when the user is on one page of a paginated table, prefetch the contents and queries of the next page.
 
-### Aggressive Prompt Caching (LLM Calls)
-
-For **all LLM calls, regardless of provider**, as long as the provider offers prompt caching, always be looking for opportunities to implement aggressive prompt caching. Prompt caching dramatically cuts cost (cached input tokens are ~50–90% cheaper depending on provider) and latency (often up to ~80% faster time-to-first-token). Whenever you write or review code that calls an LLM, check whether the prompt is structured to maximize cache hits — and restructure it if not.
-
-**The one invariant: caching is an exact prefix match**
-
-Every provider's cache keys on the exact bytes of the prompt prefix. A single byte change anywhere in the prefix invalidates everything after it. So **order prompt content by stability**:
-
-1. **Static first**: tool definitions, system prompt, few-shot examples, large reference documents — frozen, byte-identical across requests.
-2. **Per-session next**: conversation history (append-only — never rewrite earlier turns).
-3. **Volatile last**: the user's current question, timestamps, request-specific data — after the last cache boundary.
-
-**Rules**
-
-- **Freeze the system prompt.** Never interpolate timestamps, dates, UUIDs, request IDs, or per-user values into the system prompt or tool definitions — that invalidates the cache on every request. Inject dynamic context late in the message list instead.
-- **Serialize deterministically.** Sort JSON keys, keep tool lists in a stable order, and never iterate unordered sets/maps when building the prompt. Don't add/remove/reorder tools or switch models mid-conversation — both force a full cache rebuild.
-- **Multi-turn conversations**: append new turns to the end and resend the identical history so each request reuses the prior conversation's cached prefix.
-- **Verify with usage metrics, don't assume.** Check the response usage fields: Anthropic `usage.cache_read_input_tokens`, OpenAI `usage.prompt_tokens_details.cached_tokens`. Zero across repeated similar requests means a silent invalidator (timestamp in the prompt, unsorted JSON, varying tool set) — diff the rendered prompt bytes between two requests to find it.
-- **Mind minimum sizes and TTLs.** Caches require a minimum prefix (~1024+ tokens, model-dependent) and expire after minutes of inactivity (Anthropic 5 min default / 1 h option; OpenAI ~5–10 min). For bursty traffic, consider a longer TTL or pre-warming; for continuous traffic, regular requests keep the cache warm.
-
-**Provider notes**
-
-- **Anthropic**: explicit — add `cache_control: {type: "ephemeral"}` breakpoints (max 4) at stability boundaries; writes cost 1.25× (5 min) / 2× (1 h), reads ~0.1×.
-- **OpenAI**: automatic for prompts ≥1024 tokens (no code change), but only pays off when the prefix is byte-stable — structure still matters.
-- **Google Gemini**: implicit caching on 2.5+ models, plus an explicit cache API for large shared contexts.
-- Other providers/gateways (Bedrock, Vertex, OpenRouter, etc.) generally proxy the underlying provider's caching — same prefix-stability rules apply.
-
 ### Git Workflow
 
 - Make small, focused commits
@@ -327,6 +310,181 @@ Every provider's cache keys on the exact bytes of the prompt prefix. A single by
 
 - **Never squash commits or otherwise rewrite git history unless explicitly authorized.** That includes squash-merges, interactive-rebase squashing, `git commit --amend` on already-pushed commits, and force-pushing. Rewriting history is dangerous — it discards commits and context and can clobber work.
 - When integrating a branch, **prefer a normal merge commit** (over squash- or rebase-merge) whenever possible.
+
+## LLM Calls (Prompt Caching & Observability)
+
+### Aggressive Prompt Caching
+
+For **all LLM calls, regardless of provider**, as long as the provider offers prompt caching, always be looking for opportunities to implement aggressive prompt caching. Prompt caching dramatically cuts cost (cached input tokens are ~50–90% cheaper depending on provider) and latency (often up to ~80% faster time-to-first-token). Whenever you write or review code that calls an LLM, check whether the prompt is structured to maximize cache hits — and restructure it if not. Provider caching APIs, pricing, and TTLs evolve — search the internet for the provider's current prompt-caching docs and best practices when implementing or reviewing (the provider notes below are a snapshot, not the source of truth).
+
+#### The one invariant: caching is an exact prefix match
+
+Every provider's cache keys on the exact bytes of the prompt prefix. A single byte change anywhere in the prefix invalidates everything after it. So **order prompt content by stability**:
+
+1. **Static first**: tool definitions, system prompt, few-shot examples, large reference documents — frozen, byte-identical across requests.
+2. **Per-session next**: conversation history (append-only — never rewrite earlier turns).
+3. **Volatile last**: the user's current question, timestamps, request-specific data — after the last cache boundary.
+
+#### Rules
+
+- **Freeze the system prompt.** Never interpolate timestamps, dates, UUIDs, request IDs, or per-user values into the system prompt or tool definitions — that invalidates the cache on every request. Inject dynamic context late in the message list instead.
+- **Serialize deterministically.** Sort JSON keys, keep tool lists in a stable order, and never iterate unordered sets/maps when building the prompt. Don't add/remove/reorder tools or switch models mid-conversation — both force a full cache rebuild.
+- **Multi-turn conversations**: append new turns to the end and resend the identical history so each request reuses the prior conversation's cached prefix.
+- **Verify with usage metrics, don't assume.** Check the response usage fields: Anthropic `usage.cache_read_input_tokens`, OpenAI `usage.prompt_tokens_details.cached_tokens`. Zero across repeated similar requests means a silent invalidator (timestamp in the prompt, unsorted JSON, varying tool set) — diff the rendered prompt bytes between two requests to find it.
+- **Mind minimum sizes and TTLs.** Caches require a minimum prefix (~1024+ tokens, model-dependent) and expire after minutes of inactivity (Anthropic 5 min default / 1 h option; OpenAI ~5–10 min). For bursty traffic, consider a longer TTL or pre-warming; for continuous traffic, regular requests keep the cache warm.
+- **Treat cache hit rate as a first-class production metric.** Compute it as `cache_read / (input + cache_creation + cache_read)` and alert on drops — a deploy that reorders JSON keys or adds a timestamp shows up as a hit-rate drop / cost spike before anyone notices.
+- **Warm sequentially before fanning out.** A cache entry is only readable once the first response begins streaming — N parallel identical requests all pay full write price. Send one request, await the first streamed token, then fire the remaining N−1. (Anthropic also supports explicit pre-warming via a `max_tokens: 0` request.)
+- **Pin conversations to one provider/region.** When routing through a gateway or load balancer, identical prefixes must land on the same backend; provider failover mid-conversation is a full cache miss (same as a model switch).
+- **RAG placement**: cache only the shared retrieved corpus (documents that repeat across requests); per-query retrievals go after the last breakpoint. Put breakpoints at the end of the shared portion — never on the varying suffix, or every request writes a cache that nothing ever reads.
+
+#### Provider notes
+
+- **Anthropic**: explicit — add `cache_control: {type: "ephemeral"}` breakpoints (max 4) at stability boundaries, or pass `cache_control` as a top-level request param to auto-place one on the last cacheable block. Writes cost 1.25× (5 min TTL) / 2× (1 h TTL, GA — breaks even at ≥3 requests vs 2 for 5-min), reads ~0.1×. Each breakpoint looks backward up to ~20 content blocks for the longest cached prefix, so in long agentic turns (many tool_use/tool_result blocks) add an intermediate breakpoint every ~15 blocks. Minimum cacheable prefix is model-dependent (~1024–4096 tokens; below it caching silently no-ops with `cache_creation_input_tokens: 0`). Rate-limit win: on current models, cache reads do NOT count toward input-tokens-per-minute limits. Invalidation is tiered: tool-definition or model changes invalidate everything; system-prompt changes keep the tools cache; `tool_choice`/thinking toggles keep tools+system.
+- **OpenAI**: automatic for prompts ≥1024 tokens (no code change), but only pays off when the prefix is byte-stable — structure still matters. Routing hashes the first ~256 tokens; set `prompt_cache_key` (per workload/session, not per request) to steer same-prefix traffic to the same machine, and shard keys beyond ~15 requests/min per prefix. `prompt_cache_retention: "24h"` extends retention on supported models. Caching covers messages, images, tool definitions, and structured-output schemas.
+- **Google Gemini**: implicit caching on 2.5+ models, plus an explicit cache API for large shared contexts.
+- **Vercel AI SDK**: set breakpoints with `providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } }` (camelCase) on a system message (message-array form, not the `system:` string), on a message part, or inside the **last** `tool({...})` definition (tools render first; one breakpoint covers all preceding tools). Add `ttl: '1h'` for the long TTL (the SDK sets the beta header). Read cache usage from `result.providerMetadata?.anthropic` (`cacheReadInputTokens` / `cacheCreationInputTokens`) — it is NOT in `result.usage`. Through Vercel AI Gateway, `providerOptions: { gateway: { caching: 'auto' } }` auto-places a breakpoint for explicit-cache providers; without it, Anthropic-via-gateway gets no caching at all.
+- Other providers/gateways (Bedrock, Vertex, OpenRouter, etc.) generally proxy the underlying provider's caching — same prefix-stability rules apply.
+
+### Langfuse (Tracing Yes, Prompts No)
+
+When Langfuse is configured in this repo, then:
+
+- **All LLM calls must be recorded through Langfuse tracing and sessions.** Every call site that hits an LLM should be wrapped in the tracing setup (observations/spans grouped by session ID — see the Langfuse Integration section below) so cost, latency, and behavior are observable per conversation.
+- **Do not store LLM prompts in Langfuse** (no `getPrompt()` / Langfuse prompt management). Prompts live **in the codebase** as the single source of truth — so they're version-controlled alongside the code that uses them, and so terminal agents like Claude Code can easily read them as valuable context.
+- **Track cache hit rate in Langfuse.** Report cache tokens as distinct usage types on generation observations (Anthropic `cache_read_input_tokens`/`cache_creation_input_tokens`, OpenAI `cached_tokens`) so Langfuse prices them correctly and hit rate is chartable. With OTel-based ingestion, verify cache tokens aren't double-counted (some genai conventions fold cache reads into `usage.input`). AI SDK `experimental_telemetry` spans carry provider metadata through automatically.
+
+### Langfuse Integration (Optional — Setup & AI SDK Patterns)
+
+[Langfuse](https://langfuse.com/) provides observability for LLM applications: prompt management, tracing, and session tracking.
+
+> **Note:** per the policy above, this repo uses Langfuse for **tracing and sessions only** — prompts belong in the codebase. The `getPrompt` / `GET /langfuse/prompts/:name` scaffold described below demonstrates the Langfuse SDK but should not be used to store or fetch production prompts.
+
+**Setup:**
+
+1. Get keys from [cloud.langfuse.com/project/\_/settings](https://cloud.langfuse.com/project/_/settings)
+2. Set in `.env`:
+   ```bash
+   LANGFUSE_PUBLIC_KEY=your-key
+   LANGFUSE_SECRET_KEY=your-key
+   LANGFUSE_BASE_URL=https://cloud.langfuse.com  # optional
+   ```
+3. Langfuse is automatically initialized on server startup
+4. Health check at `/health` includes Langfuse status
+
+**Features:**
+
+- `src/services/langfuse.ts` — Manages prompts and gracefully degrades if keys are missing
+- `src/services/telemetry.ts` — OpenTelemetry SDK with LangfuseSpanProcessor (auto-captures AI SDK spans)
+- `GET /langfuse/test` — Verify Langfuse connectivity
+- `GET /langfuse/prompts/:name?context=X&query=Y` — Fetch and render prompts with variable substitution (`{{variable}}`)
+- `POST /langfuse/trace-example` — Runnable scaffold: Vercel AI SDK + Claude Haiku + tracing + sessions
+
+**AI SDK + Langfuse tracing pattern:**
+
+The template uses [Vercel AI SDK](https://sdk.vercel.ai/) (`ai` + `@ai-sdk/anthropic`) for LLM calls. Both `generateText` and `streamText` are current, non-deprecated APIs:
+
+- `generateText` — non-interactive/agent use; waits for full completion before returning
+- `streamText` — interactive/chat use; streams tokens to the client in real time
+
+Tracing flows through OpenTelemetry automatically via `experimental_telemetry` — no manual span creation needed for token counts or model metadata.
+
+**Full pattern with tool call (from `src/trpc/routers/langfuse.ts`):**
+
+```typescript
+import { generateText, tool, stepCountIs } from "ai";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { z } from "zod";
+import { startActiveObservation, propagateAttributes } from "@langfuse/tracing";
+
+const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
+
+// Define a tool — replace execute() with a real API call
+const getCurrentWeather = tool({
+  description: "Get the current weather for a city.",
+  inputSchema: z.object({
+    city: z.string().describe("The city to get weather for"),
+  }),
+  execute: async ({ city }) => ({ city, temperature: 68, condition: "Sunny" }),
+});
+
+// sessionId from request body — groups all spans into one Langfuse session
+const traceAttrs = sessionId ? { sessionId: String(sessionId) } : {};
+
+await startActiveObservation("my-llm-call", async (span) => {
+  span.update({ input: { prompt } }); // annotate the Langfuse observation
+
+  await propagateAttributes(traceAttrs, async () => {
+    const result = await generateText({
+      model: anthropic("claude-haiku-4-5"),
+      prompt,
+      tools: { getCurrentWeather },
+      // stopWhen enables multi-step: model calls tool → gets result → generates final text
+      stopWhen: stepCountIs(3),
+      experimental_telemetry: {
+        isEnabled: true,
+        functionId: "my-llm-call", // label shown in Langfuse
+        metadata: { route: "/my-route" },
+      },
+    });
+
+    generatedText = result.text;
+    // result.usage: { inputTokens, outputTokens, totalTokens }
+    // result.steps[].toolResults: [{ toolName, input, output }]
+  });
+
+  span.update({ output: { text: generatedText } });
+});
+```
+
+**Key concepts:**
+
+- `tool({ description, inputSchema, execute })` — AI SDK v6 tool definition. Use `inputSchema` (Zod), NOT `parameters`. The `execute` function receives validated input and returns a result the model can use.
+- `stopWhen: stepCountIs(N)` — enables multi-step agentic loops: model calls tool → SDK executes it → result fed back → model continues. Caps at N steps.
+- `startActiveObservation(name, fn)` — wraps the async function in a Langfuse observation. Call `span.update({ input, output })` to annotate. Ends automatically when `fn` resolves.
+- `propagateAttributes({ sessionId })` — binds a session ID to all child spans via Node.js async context. Groups multiple requests into one session in the Langfuse UI.
+- `experimental_telemetry` — enables AI SDK's built-in OTel instrumentation. `LangfuseSpanProcessor` in `telemetry.ts` captures these spans automatically.
+
+**Switching models:**
+
+```typescript
+// Claude (via @ai-sdk/anthropic — already installed)
+anthropic("claude-haiku-4-5"); // fastest, cheapest
+anthropic("claude-sonnet-4-6"); // balanced
+
+// OpenAI (install @ai-sdk/openai first)
+import { createOpenAI } from "@ai-sdk/openai";
+const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY });
+openai("gpt-4o-mini");
+```
+
+**Streaming (for real-time chat):**
+
+```typescript
+import { streamText } from "ai";
+
+const result = streamText({
+  model: anthropic("claude-haiku-4-5"),
+  prompt,
+  tools: { getCurrentWeather },
+  stopWhen: stepCountIs(3),
+  experimental_telemetry: { isEnabled: true, functionId: "my-stream" },
+});
+
+// Pipe to Express response (SSE):
+result.pipeTextStreamToResponse(res);
+```
+
+**Test the scaffold:**
+
+```bash
+# Requires ANTHROPIC_API_KEY in apps/api/.env
+curl -X POST http://localhost:8000/langfuse/trace-example \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "What'\''s the weather in Paris?", "sessionId": "my-session-123"}'
+# Returns: { text, usage, toolCalls: [{ tool, input, output }], langfuseTraced }
+```
+
+All Langfuse features are **optional** and gracefully degrade if not configured.
 
 ## Common Pitfalls to Avoid
 
@@ -690,137 +848,6 @@ Supabase uses two types of API keys (new format as of 2025):
 
 **Migration Note:**
 Supabase is migrating away from legacy JWT-based keys (old `anon` and `service_role` keys). The new key format started as opt-in in Q1 2025, with full enforcement for new projects starting November 1, 2025. Projects created before then can continue using legacy keys until that date.
-
-### Langfuse Integration (Optional)
-
-[Langfuse](https://langfuse.com/) provides observability for LLM applications: prompt management, tracing, and session tracking.
-
-**Setup:**
-
-1. Get keys from [cloud.langfuse.com/project/\_/settings](https://cloud.langfuse.com/project/_/settings)
-2. Set in `.env`:
-   ```bash
-   LANGFUSE_PUBLIC_KEY=your-key
-   LANGFUSE_SECRET_KEY=your-key
-   LANGFUSE_BASE_URL=https://cloud.langfuse.com  # optional
-   ```
-3. Langfuse is automatically initialized on server startup
-4. Health check at `/health` includes Langfuse status
-
-**Features:**
-
-- `src/services/langfuse.ts` — Manages prompts and gracefully degrades if keys are missing
-- `src/services/telemetry.ts` — OpenTelemetry SDK with LangfuseSpanProcessor (auto-captures AI SDK spans)
-- `GET /langfuse/test` — Verify Langfuse connectivity
-- `GET /langfuse/prompts/:name?context=X&query=Y` — Fetch and render prompts with variable substitution (`{{variable}}`)
-- `POST /langfuse/trace-example` — Runnable scaffold: Vercel AI SDK + Claude Haiku + tracing + sessions
-
-**AI SDK + Langfuse tracing pattern:**
-
-The template uses [Vercel AI SDK](https://sdk.vercel.ai/) (`ai` + `@ai-sdk/anthropic`) for LLM calls. Both `generateText` and `streamText` are current, non-deprecated APIs:
-
-- `generateText` — non-interactive/agent use; waits for full completion before returning
-- `streamText` — interactive/chat use; streams tokens to the client in real time
-
-Tracing flows through OpenTelemetry automatically via `experimental_telemetry` — no manual span creation needed for token counts or model metadata.
-
-**Full pattern with tool call (from `src/trpc/routers/langfuse.ts`):**
-
-```typescript
-import { generateText, tool, stepCountIs } from "ai";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { z } from "zod";
-import { startActiveObservation, propagateAttributes } from "@langfuse/tracing";
-
-const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
-
-// Define a tool — replace execute() with a real API call
-const getCurrentWeather = tool({
-  description: "Get the current weather for a city.",
-  inputSchema: z.object({
-    city: z.string().describe("The city to get weather for"),
-  }),
-  execute: async ({ city }) => ({ city, temperature: 68, condition: "Sunny" }),
-});
-
-// sessionId from request body — groups all spans into one Langfuse session
-const traceAttrs = sessionId ? { sessionId: String(sessionId) } : {};
-
-await startActiveObservation("my-llm-call", async (span) => {
-  span.update({ input: { prompt } }); // annotate the Langfuse observation
-
-  await propagateAttributes(traceAttrs, async () => {
-    const result = await generateText({
-      model: anthropic("claude-haiku-4-5"),
-      prompt,
-      tools: { getCurrentWeather },
-      // stopWhen enables multi-step: model calls tool → gets result → generates final text
-      stopWhen: stepCountIs(3),
-      experimental_telemetry: {
-        isEnabled: true,
-        functionId: "my-llm-call", // label shown in Langfuse
-        metadata: { route: "/my-route" },
-      },
-    });
-
-    generatedText = result.text;
-    // result.usage: { inputTokens, outputTokens, totalTokens }
-    // result.steps[].toolResults: [{ toolName, input, output }]
-  });
-
-  span.update({ output: { text: generatedText } });
-});
-```
-
-**Key concepts:**
-
-- `tool({ description, inputSchema, execute })` — AI SDK v6 tool definition. Use `inputSchema` (Zod), NOT `parameters`. The `execute` function receives validated input and returns a result the model can use.
-- `stopWhen: stepCountIs(N)` — enables multi-step agentic loops: model calls tool → SDK executes it → result fed back → model continues. Caps at N steps.
-- `startActiveObservation(name, fn)` — wraps the async function in a Langfuse observation. Call `span.update({ input, output })` to annotate. Ends automatically when `fn` resolves.
-- `propagateAttributes({ sessionId })` — binds a session ID to all child spans via Node.js async context. Groups multiple requests into one session in the Langfuse UI.
-- `experimental_telemetry` — enables AI SDK's built-in OTel instrumentation. `LangfuseSpanProcessor` in `telemetry.ts` captures these spans automatically.
-
-**Switching models:**
-
-```typescript
-// Claude (via @ai-sdk/anthropic — already installed)
-anthropic("claude-haiku-4-5"); // fastest, cheapest
-anthropic("claude-sonnet-4-6"); // balanced
-
-// OpenAI (install @ai-sdk/openai first)
-import { createOpenAI } from "@ai-sdk/openai";
-const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY });
-openai("gpt-4o-mini");
-```
-
-**Streaming (for real-time chat):**
-
-```typescript
-import { streamText } from "ai";
-
-const result = streamText({
-  model: anthropic("claude-haiku-4-5"),
-  prompt,
-  tools: { getCurrentWeather },
-  stopWhen: stepCountIs(3),
-  experimental_telemetry: { isEnabled: true, functionId: "my-stream" },
-});
-
-// Pipe to Express response (SSE):
-result.pipeTextStreamToResponse(res);
-```
-
-**Test the scaffold:**
-
-```bash
-# Requires ANTHROPIC_API_KEY in apps/api/.env
-curl -X POST http://localhost:8000/langfuse/trace-example \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "What'\''s the weather in Paris?", "sessionId": "my-session-123"}'
-# Returns: { text, usage, toolCalls: [{ tool, input, output }], langfuseTraced }
-```
-
-All Langfuse features are **optional** and gracefully degrade if not configured.
 
 ## Verification Checklist
 
