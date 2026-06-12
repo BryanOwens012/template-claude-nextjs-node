@@ -7,7 +7,7 @@ import { getEnvironment } from '@/config/environment.js';
 import { getPrompt } from '@/prompts/index.js';
 import { getLangfuse, isLangfuseAvailable } from '@/services/langfuse.js';
 import { createRouter, publicProcedure } from '@/trpc/init.js';
-import { PromptInputSchema, TraceExampleInputSchema } from '@/types/index.js';
+import { PromptInputSchema, PromptResponseSchema, TraceExampleInputSchema } from '@/types/index.js';
 
 // Mock tool — returns hardcoded data so the scaffold runs without external APIs.
 // Replace the execute function with a real API call in your project.
@@ -46,19 +46,27 @@ export const langfuseRouter = createRouter({
   }),
 
   // Prompts are stored in the codebase (src/prompts/), not in Langfuse — so this
-  // works regardless of whether Langfuse is configured.
-  getPrompt: publicProcedure.input(PromptInputSchema).query(({ input }) => {
-    const { text, name, found } = getPrompt(input.name, input.variables);
+  // works regardless of whether Langfuse is configured. Unknown names fail closed.
+  getPrompt: publicProcedure
+    .input(PromptInputSchema)
+    .output(PromptResponseSchema)
+    .query(({ input }) => {
+      const { text, name, wasFound } = getPrompt(input.name, input.variables);
 
-    return {
-      source: 'codebase' as const,
-      promptName: name,
-      requestedName: input.name,
-      found,
-      prompt: text,
-      variables: input.variables,
-    };
-  }),
+      if (!wasFound) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Prompt '${input.name}' is not in the registry (src/prompts/)`,
+        });
+      }
+
+      return {
+        source: 'codebase' as const,
+        promptName: name,
+        prompt: text,
+        variables: input.variables,
+      };
+    }),
 
   traceExample: publicProcedure.input(TraceExampleInputSchema).mutation(async ({ input }) => {
     const env = getEnvironment();
@@ -73,8 +81,8 @@ export const langfuseRouter = createRouter({
     const { prompt, sessionId } = input;
     const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
     // All LLM calls are grouped into a Langfuse session (see CLAUDE.md). When the
-    // client doesn't supply a sessionId, generate one so no call is session-less.
-    const effectiveSessionId = sessionId ? String(sessionId) : `anon-${crypto.randomUUID()}`;
+    // client omits sessionId (or sends ''), generate one so no call is session-less.
+    const effectiveSessionId = sessionId || `anon-${crypto.randomUUID()}`;
     const traceAttrs = { sessionId: effectiveSessionId };
 
     try {

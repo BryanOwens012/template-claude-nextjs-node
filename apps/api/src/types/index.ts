@@ -55,6 +55,14 @@ export const PromptInputSchema = z.object({
 });
 export type PromptInput = z.infer<typeof PromptInputSchema>;
 
+export const PromptResponseSchema = z.object({
+  source: z.literal('codebase'),
+  promptName: z.string(),
+  prompt: z.string(),
+  variables: z.record(z.string(), z.string()),
+});
+export type PromptResponse = z.infer<typeof PromptResponseSchema>;
+
 export const TraceExampleInputSchema = z.object({
   prompt: z.string().optional().default("What's the weather like in San Francisco?"),
   sessionId: z.string().optional(),

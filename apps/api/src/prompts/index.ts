@@ -16,20 +16,37 @@ const promptRegistry = {
 
 export type PromptName = keyof typeof promptRegistry;
 
-export const isPromptName = (name: string): name is PromptName => name in promptRegistry;
+const FALLBACK_PROMPT_NAME: PromptName = 'example';
 
-// Substitute {{variable}} placeholders with provided values
+// Object.hasOwn (not `in`) so prototype members like 'toString' don't match
+export const isPromptName = (name: string): name is PromptName =>
+  Object.hasOwn(promptRegistry, name);
+
+// Substitute {{variable}} placeholders with provided values. The function form of
+// the replacement keeps values literal — a string replacement would interpret `$`
+// patterns ($&, $$, $') and corrupt values containing dollar signs.
 export const compilePrompt = (text: string, variables: Record<string, string> = {}): string =>
-  Object.entries(variables).reduce((t, [key, value]) => t.replaceAll(`{{${key}}}`, value), text);
+  Object.entries(variables).reduce(
+    (t, [key, value]) => t.replaceAll(`{{${key}}}`, () => value),
+    text,
+  );
 
+// Total function (never throws): unknown names compile the fallback prompt with
+// wasFound: false, so callers decide whether to use it or fail closed.
 export const getPrompt = (
   name: string,
   variables: Record<string, string> = {},
-): { text: string; name: PromptName; found: boolean } => {
+): { text: string; name: PromptName; wasFound: boolean } => {
   if (isPromptName(name)) {
-    return { text: compilePrompt(promptRegistry[name], variables), name, found: true };
+    return { text: compilePrompt(promptRegistry[name], variables), name, wasFound: true };
   }
 
-  console.warn(`[prompts] Prompt '${name}' not found in registry, using 'example' fallback`);
-  return { text: compilePrompt(promptRegistry.example, variables), name: 'example', found: false };
+  console.warn(
+    `[prompts] Prompt '${name}' not found in registry, using '${FALLBACK_PROMPT_NAME}' fallback`,
+  );
+  return {
+    text: compilePrompt(promptRegistry[FALLBACK_PROMPT_NAME], variables),
+    name: FALLBACK_PROMPT_NAME,
+    wasFound: false,
+  };
 };

@@ -489,7 +489,8 @@ curl -X POST http://localhost:8000/trpc/langfuse.traceExample \
   -H "Content-Type: application/json" \
   -H "x-trpc-source: curl" \
   -d '{"prompt": "What'\''s the weather in Paris?", "sessionId": "my-session-123"}'
-# Returns: { text, usage, toolCalls: [{ tool, input, output }], sessionId, langfuseTraced }
+# Returns (in the tRPC envelope {"result":{"data":{...}}}):
+#   { text, usage, toolCalls: [{ tool, input, output }], sessionId, langfuseTraced }
 ```
 
 All Langfuse features are **optional** and gracefully degrade if not configured.

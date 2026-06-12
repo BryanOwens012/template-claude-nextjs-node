@@ -8,6 +8,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc && tsc-alias",
     "start": "node dist/api/src/index.js",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
