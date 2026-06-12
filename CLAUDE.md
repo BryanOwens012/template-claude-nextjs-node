@@ -1,6 +1,6 @@
 # Claude Code Instructions
 
-As a reference, this file is organized as follows: **Project Overview** → what this template is and its tech stack; **Development Guidelines** → how to behave and work (respond in words first; be liberal with tools/MCPs), code quality, TS/React/Express style, dependency management, code organization, testing, security posture, performance & prefetching, and git workflow; **LLM Calls** → prompt caching doctrine and Langfuse tracing/prompt policy + integration patterns; **Common Pitfalls** → frequent mistakes to avoid; **Decision Logging** → the AGENTS_APPENDLOG discipline; **Deployment** → Vercel (web) and Railway (api); **Project-Specific Patterns** → env vars, tRPC integration, CORS, SQL migrations, Supabase types/keys; **Verification Checklist** → pre-completion gates; **Agent Session Logging** + **Agent Collaboration** → multi-agent etiquette; **Template Customization** → how to adapt this template to a new project.
+As a reference, this file is organized as follows: **Project Overview** → what this template is and its tech stack; **Development Guidelines** → how to behave and work (respond in words first; be liberal with tools/MCPs), code quality, TS/React/Express style, dependency management, code organization, testing, security posture, performance & prefetching, and git workflow; **LLM Calls** → prompt caching doctrine and Langfuse tracing/prompt policy + integration patterns; **Common Pitfalls** → frequent mistakes to avoid; **Deployment** → Vercel (web) and Railway (api); **Project-Specific Patterns** → env vars, tRPC integration, CORS, SQL migrations, Supabase types/keys; **Verification Checklist** → pre-completion gates; **Agent Session Logging** + **Agent Collaboration** → multi-agent etiquette; **Template Customization** → how to adapt this template to a new project.
 
 ## Project Overview
 
@@ -35,7 +35,6 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 
 - **Code Quality First**: Always test after changes, fix all TypeScript errors before committing
 - **Modern Syntax**: Use latest ES6+ and Node.js 24+ features
-- **Documentation**: Log significant decisions in docs/AGENTS_APPENDLOG.md (append to that file only; don't read anything in it beyond the final/trailing 20 lines)
 - **AI-Assisted**: Leverage AI for rapid development while maintaining high standards
 
 ## Development Guidelines
@@ -539,46 +538,6 @@ All Langfuse features are **optional** and gracefully degrade if not configured.
 - ❌ Don't use `http-errors` in tRPC procedures — use `TRPCError` with the correct code
 - ❌ Don't forget to rebuild the API (`npm run build:api`) after changing tRPC routers — the web typecheck depends on emitted declarations
 
-## Decision Logging & Meta-Documentation
-
-### Running Logs
-
-- **docs/AGENTS_APPENDLOG.md**: Append-only log of all significant decisions (append to that file only; don't read anything in it beyond the final/trailing 20 lines)
-- Log architecture choices, library selections, trade-offs
-- Include timestamps in format: `YYYY-MM-DD HH:MM PT` (Pacific Time)
-- Never hallucinate timestamps - ask user if current time is unknown
-
-### What to Log
-
-- Framework/library selection decisions
-- Architecture changes
-- API design choices
-- Database schema decisions
-- Deployment configuration changes
-- Performance optimizations
-- Security considerations
-- Bug fixes that reveal important learnings
-
-### Log Entry Format
-
-```markdown
-## YYYY-MM-DD HH:MM PT - Entry Title
-
-**Type:** [Decision | Implementation | Bug Fix | Refactor]
-**Change:** What was changed/decided
-**Rationale:** Why this choice was made
-**Alternatives Considered:** Other options (if applicable)
-**Impact:** Time/complexity/features affected
-**Learnings:** Insights or patterns discovered
-```
-
-### Holistic Documentation
-
-After appending to AGENTS_APPENDLOG.md:
-
-1. Update README.md with any user-facing changes
-2. Incorporate key insights and improved workflows into CLAUDE.md for future reference
-
 ## Deployment
 
 ### Vercel (Web App)
@@ -898,7 +857,6 @@ Before considering any task complete:
 ### Documentation
 
 - [ ] Documentation updated if behavior or APIs changed
-- [ ] Significant decisions logged in AGENTS_APPENDLOG.md (append to that file only; don't read anything in it beyond the final/trailing 20 lines)
 - [ ] Code comments added for complex logic
 - [ ] README.md updated if user-facing changes were made
 
@@ -924,7 +882,6 @@ When multiple agents or sessions work on this project:
 1. **Always read on startup:**
    - README.md for project overview and setup
    - CLAUDE.md (this file) for development guidelines
-   - AGENTS_APPENDLOG.md (last ~100 lines) for recent changes
 
 2. **Before starting work:**
    - Check `git status` to see current state
@@ -939,7 +896,6 @@ When multiple agents or sessions work on this project:
    - Communicate clearly about what's being worked on
 
 4. **After completing work:**
-   - Log significant decisions in AGENTS_APPENDLOG.md
    - Update documentation if needed
    - Clear completed todos or clean up todo list
    - Don't leave work in an incomplete state
@@ -972,9 +928,8 @@ When using this template for a new project:
 ### Documentation Updates
 
 1. Document project-specific patterns in this file (CLAUDE.md)
-2. Log initial architecture decisions in `docs/AGENTS_APPENDLOG.md`
-3. Update README.md with project-specific setup instructions
-4. Add project-specific testing instructions
+2. Update README.md with project-specific setup instructions
+3. Add project-specific testing instructions
 
 ### Deployment
 

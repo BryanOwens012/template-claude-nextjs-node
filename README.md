@@ -115,8 +115,6 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 │       └── supabase/
 │           ├── types.ts              # Generated Supabase types
 │           └── migrations/           # SQL migrations (.up.sql/.down.sql pairs, run manually)
-├── docs/
-│   └── AGENTS_APPENDLOG.md   # Decision log (append-only)
 ├── scripts/
 │   └── test_services.sh      # Service connectivity test script
 ├── .entire/                  # entire.io agent session logger (see below)
@@ -474,15 +472,12 @@ This template includes comprehensive documentation for AI-assisted development:
 
 - **CLAUDE.md**: Comprehensive development guidelines, coding standards, workflows, and best practices
 - **AGENTS.md**: Universal entry point for AI agents (redirects to CLAUDE.md)
-- **docs/AGENTS_APPENDLOG.md**: Decision log for tracking architectural choices and learnings
 - **.mcp.json**: Preconfigured MCP servers for AI agents — Vercel (HTTP), Railway, and Supabase (read-only; requires `SUPABASE_ACCESS_TOKEN` in your environment)
 
 When working with AI assistants, they should:
 
 1. Read `CLAUDE.md` for complete development guidelines
 2. Read `README.md` for project overview and setup
-3. Read `docs/AGENTS_APPENDLOG.md` (last ~100 lines) for recent changes
-4. Log significant decisions in `docs/AGENTS_APPENDLOG.md`
 
 ### Agent Session Logging (entire.io)
 
@@ -644,9 +639,8 @@ Localhost is always allowed automatically. Check server logs for `🚫 CORS reje
 ## Contributing
 
 1. Follow the coding standards in `CLAUDE.md`
-2. Log significant decisions in `docs/AGENTS_APPENDLOG.md`
-3. Test changes thoroughly before committing
-4. Keep commits focused and atomic
+2. Test changes thoroughly before committing
+3. Keep commits focused and atomic
 
 ## License
 
