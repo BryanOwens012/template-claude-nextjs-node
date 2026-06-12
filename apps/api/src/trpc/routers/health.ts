@@ -37,9 +37,15 @@ export const healthRouter = createRouter({
     langfuseStatus = isLangfuseAvailable() ? 'connected' : 'unconfigured';
 
     const connected: string[] = [];
-    if (redisStatus === 'connected') connected.push('Redis');
-    if (supabaseStatus === 'connected') connected.push('Supabase');
-    if (langfuseStatus === 'connected') connected.push('Langfuse');
+    if (redisStatus === 'connected') {
+      connected.push('Redis');
+    }
+    if (supabaseStatus === 'connected') {
+      connected.push('Supabase');
+    }
+    if (langfuseStatus === 'connected') {
+      connected.push('Langfuse');
+    }
 
     const isHealthy = redisStatus === 'connected' || supabaseStatus === 'connected';
 

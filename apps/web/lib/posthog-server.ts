@@ -14,10 +14,14 @@ const noopClient = {
 } as unknown as PostHog;
 
 const getPostHogServer = (): PostHog => {
-  if (client) return client;
+  if (client) {
+    return client;
+  }
 
   const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  if (!posthogKey) return noopClient;
+  if (!posthogKey) {
+    return noopClient;
+  }
 
   const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || undefined;
   client = new PostHog(posthogKey, { host: posthogHost });

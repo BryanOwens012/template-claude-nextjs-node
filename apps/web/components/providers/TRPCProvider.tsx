@@ -23,7 +23,9 @@ const getQueryClient = () => {
   if (typeof window === 'undefined') {
     return makeQueryClient();
   }
-  if (!browserQueryClient) browserQueryClient = makeQueryClient();
+  if (!browserQueryClient) {
+    browserQueryClient = makeQueryClient();
+  }
   return browserQueryClient;
 };
 

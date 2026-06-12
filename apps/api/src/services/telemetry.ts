@@ -35,7 +35,9 @@ export const initTelemetry = () => {
 };
 
 export const shutdownTelemetry = async () => {
-  if (!sdk) return;
+  if (!sdk) {
+    return;
+  }
   try {
     await sdk.shutdown();
   } catch (error) {

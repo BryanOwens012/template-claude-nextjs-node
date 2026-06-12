@@ -4,9 +4,10 @@ import { TRPCError } from '@trpc/server';
 import { generateText, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
 import { getEnvironment } from '@/config/environment.js';
-import { getLangfuse, getPrompt, isLangfuseAvailable } from '@/services/langfuse.js';
+import { getPrompt } from '@/prompts/index.js';
+import { getLangfuse, isLangfuseAvailable } from '@/services/langfuse.js';
 import { createRouter, publicProcedure } from '@/trpc/init.js';
-import { PromptInputSchema, TraceExampleInputSchema } from '@/types/index.js';
+import { PromptInputSchema, PromptResponseSchema, TraceExampleInputSchema } from '@/types/index.js';
 
 // Mock tool — returns hardcoded data so the scaffold runs without external APIs.
 // Replace the execute function with a real API call in your project.
@@ -22,6 +23,12 @@ const getCurrentWeather = tool({
     condition: 'Partly cloudy',
     humidity: '62%',
   }),
+  // Prompt-caching breakpoint on the LAST tool: tools render first in the prompt,
+  // so one breakpoint here covers every preceding tool definition. It only engages
+  // once the prefix exceeds the model's minimum cacheable size (~4096 tokens on
+  // Haiku 4.5) — kept in this scaffold as the pattern to copy for real prompts.
+  // Verify hits via result.providerMetadata?.anthropic (not result.usage).
+  providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
 });
 
 export const langfuseRouter = createRouter({
@@ -38,25 +45,28 @@ export const langfuseRouter = createRouter({
     };
   }),
 
-  getPrompt: publicProcedure.input(PromptInputSchema).query(async ({ input }) => {
-    if (!isLangfuseAvailable()) {
+  // Prompts are stored in the codebase (src/prompts/), not in Langfuse — so this
+  // works regardless of whether Langfuse is configured. Unknown names fail closed.
+  getPrompt: publicProcedure
+    .input(PromptInputSchema)
+    .output(PromptResponseSchema)
+    .query(({ input }) => {
+      const { text, name, wasFound } = getPrompt(input.name, input.variables);
+
+      if (!wasFound) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Prompt '${input.name}' is not in the registry (src/prompts/)`,
+        });
+      }
+
       return {
-        langfuseAvailable: false,
-        message: 'Langfuse not available',
-        promptName: input.name,
+        source: 'codebase' as const,
+        promptName: name,
+        prompt: text,
+        variables: input.variables,
       };
-    }
-
-    const { text, promptObj } = await getPrompt(input.name, input.variables);
-
-    return {
-      langfuseAvailable: true,
-      promptName: input.name,
-      prompt: text,
-      variables: input.variables,
-      promptObj: promptObj ? { name: promptObj.name, version: promptObj.version } : null,
-    };
-  }),
+    }),
 
   traceExample: publicProcedure.input(TraceExampleInputSchema).mutation(async ({ input }) => {
     const env = getEnvironment();
@@ -70,7 +80,10 @@ export const langfuseRouter = createRouter({
 
     const { prompt, sessionId } = input;
     const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
-    const traceAttrs = sessionId ? { sessionId: String(sessionId) } : {};
+    // All LLM calls are grouped into a Langfuse session (see CLAUDE.md). When the
+    // client omits sessionId (or sends ''), generate one so no call is session-less.
+    const effectiveSessionId = sessionId || `anon-${crypto.randomUUID()}`;
+    const traceAttrs = { sessionId: effectiveSessionId };
 
     try {
       let generatedText = '';
@@ -120,12 +133,14 @@ export const langfuseRouter = createRouter({
         text: generatedText,
         usage: usageInfo,
         toolCalls: toolCallsMade,
-        sessionId: sessionId ?? null,
+        sessionId: effectiveSessionId,
         langfuseTraced: isLangfuseAvailable(),
         model: 'claude-haiku-4-5',
       };
     } catch (error) {
-      if (error instanceof TRPCError) throw error;
+      if (error instanceof TRPCError) {
+        throw error;
+      }
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
         message: `AI call failed: ${error instanceof Error ? error.message : String(error)}`,

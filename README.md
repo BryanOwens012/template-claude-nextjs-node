@@ -6,12 +6,12 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 
 - **Authentication**: Supabase Auth with email+password, Google OAuth, and Microsoft OAuth (all free)
 - **Modern Frontend**: Next.js 16 with React 19, TypeScript, Tailwind CSS v4, Radix UI, shadcn/ui
-- **Robust Backend**: Express 5 + tRPC v11 with Node.js 22+, TypeScript, end-to-end type safety
+- **Robust Backend**: Express 5 + tRPC v11 with Node.js 24+, TypeScript, end-to-end type safety
 - **End-to-End Type Safety**: tRPC v11 + TanStack Query v5 for type-safe API calls with automatic caching
 - **Supabase Integration**: PostgreSQL database with built-in auth, realtime, and storage
 - **Redis Integration**: Built-in caching with Railway-optimized connection settings
 - **Vercel AI SDK**: First-class LLM integration with Claude Haiku, streaming, and tool calls
-- **Langfuse Integration**: Optional LLM observability for prompts, tracing, and sessions
+- **Langfuse Integration**: Optional LLM observability for tracing and sessions (prompts live in the codebase, not Langfuse)
 - **PostHog Analytics**: Optional web analytics and product analytics with managed reverse proxy support
 - **Deployment Ready**: Pre-configured for Vercel (frontend) and Railway (backend + Redis)
 - **Monorepo Structure**: Organized multi-service architecture
@@ -24,7 +24,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 
 - **Framework**: Next.js 16
 - **UI Library**: React 19
-- **Language**: TypeScript 5+
+- **Language**: TypeScript 6+
 - **Styling**: Tailwind CSS v4 (CSS-first configuration via `@theme` in `globals.css`)
 - **UI Components**: Radix UI, shadcn/ui
 - **Data Fetching**: TanStack Query v5 (via tRPC)
@@ -33,13 +33,13 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 ### Backend
 
 - **Framework**: Express 5
-- **Runtime**: Node.js 22+
+- **Runtime**: Node.js 24+
 - **Language**: TypeScript with ESM modules
 - **API Layer**: tRPC v11 (type-safe procedures) + Zod (schemas + inferred types)
 - **Database**: Supabase (PostgreSQL with auth, realtime, storage)
 - **Caching**: Redis (ioredis with Railway-optimized settings)
 - **AI**: Vercel AI SDK (`ai` + `@ai-sdk/anthropic`) — `generateText`, `streamText`, tool calls
-- **Observability**: Langfuse (optional: prompt management, tracing, sessions)
+- **Observability**: Langfuse (optional: tracing, sessions; prompts live in the codebase at `apps/api/src/prompts/`)
 - **Deployment**: Railway (API + Redis plugin)
 
 ## Project Structure
@@ -87,6 +87,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 │   │   │   ├── middleware/
 │   │   │   │   ├── cors.ts           # CORS configuration
 │   │   │   │   └── errorHandler.ts   # Error handling
+│   │   │   ├── prompts/              # LLM prompts (codebase source of truth) + tests
 │   │   │   ├── trpc/
 │   │   │   │   ├── init.ts           # Context, createRouter, publicProcedure, middleware
 │   │   │   │   ├── middleware.ts      # Auth middleware (authenticatedProcedure, etc.)
@@ -96,23 +97,28 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 │   │   │   └── types/                # Zod schemas & types
 │   │   ├── package.json
 │   │   ├── tsconfig.json
-│   │   ├── railway.json              # Railway deployment config
-│   │   ├── .railwayignore            # Railway ignore patterns
-│   │   ├── nixpacks.toml             # Nixpacks build config
+│   │   ├── Dockerfile                # Docker build (node:24-alpine, used by Railway)
 │   │   └── .env.example
+│   ├── cron/                 # Scheduled jobs (e.g. Supabase keep-alive ping)
+│   │   ├── src/
+│   │   ├── package.json
+│   │   └── tsconfig.json
 │   └── shared/               # Shared assets across services
 │       └── supabase/
 │           ├── types.ts              # Generated Supabase types
-│           └── migrations/
+│           └── migrations/           # SQL migrations (.up.sql/.down.sql pairs, run manually)
 ├── docs/
 │   └── AGENTS_APPENDLOG.md   # Decision log (append-only)
 ├── scripts/
 │   └── test_services.sh      # Service connectivity test script
 ├── .entire/                  # entire.io agent session logger (see below)
 │   └── settings.json         # Logging config (committed; logs gitignored internally)
+├── .mcp.json                 # MCP servers for AI agents (Vercel, Railway, Supabase read-only)
 ├── AGENTS.md                 # AI agent entry point (redirects to CLAUDE.md)
 ├── CLAUDE.md                 # Comprehensive development guidelines and best practices
+├── biome.json                # JS/TS formatting and linting rules
 ├── vercel.json               # Vercel deployment config
+├── railway.json              # Railway deployment config (Dockerfile builder → apps/api)
 ├── .vercelignore             # Vercel ignore patterns
 ├── .gitignore                # Comprehensive ignore patterns
 └── README.md                 # This file
@@ -122,7 +128,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 
 ### Prerequisites
 
-- Node.js 22.0.0 or higher
+- Node.js 24.0.0 or higher
 - npm or yarn
 - [Supabase account](https://supabase.com) (free tier available)
 
@@ -305,14 +311,15 @@ The test script will check:
 # Infrastructure health probe
 curl http://localhost:8000/health
 
+# tRPC endpoints require the x-trpc-source header (CSRF protection — see above)
 # Detailed health check (via tRPC)
-curl http://localhost:8000/trpc/health.check
+curl -H "x-trpc-source: curl" http://localhost:8000/trpc/health.check
 
 # Test Redis
-curl http://localhost:8000/trpc/redis.test
+curl -H "x-trpc-source: curl" http://localhost:8000/trpc/redis.test
 
 # Test Supabase
-curl http://localhost:8000/trpc/supabase.test
+curl -H "x-trpc-source: curl" http://localhost:8000/trpc/supabase.test
 ```
 
 ## Deployment
@@ -337,8 +344,8 @@ Each service under `apps/` can be deployed independently to Railway.
 
 1. Create a new service in Railway
 2. Connect your repository (via GitHub integration)
-3. **Set the root directory** to `apps/api` in Railway service settings
-4. Railway will automatically detect `railway.json` and `nixpacks.toml` in the service directory
+3. **Keep the service root directory at the repo root** — the root `railway.json` uses the `DOCKERFILE` builder pointing at `apps/api/Dockerfile`, and the Dockerfile needs repo-root build context to copy `apps/shared/` alongside `apps/api/`
+4. Railway will automatically detect the root `railway.json` and build the Dockerfile
 5. **Add Redis plugin**: Click "New" → "Database" → "Add Redis"
    - Railway will automatically set the `REDIS_URL` environment variable
    - The API is configured with Railway-compatible settings (socket family 0 for IPv6/IPv4 dual-stack)
@@ -348,18 +355,19 @@ Each service under `apps/` can be deployed independently to Railway.
 7. Set other environment variables (CORS_ORIGINS, etc.)
 8. Deploy
 
-**Per-service configuration files in `apps/api/`:**
+**Deployment configuration files:**
 
-- `railway.json` - Deployment configuration
-- `.railwayignore` - Excludes development files and caches
-- `nixpacks.toml` - Build configuration (Node.js 22, npm ci + npm run build)
-- `package.json` / `package-lock.json` - Node.js dependencies for this service
+- `railway.json` (repo root) - Deployment configuration (Dockerfile builder, start command, restart policy)
+- `apps/api/Dockerfile` - Build configuration (`node:24-alpine`, `npm ci` + `npm run build`)
+- `apps/api/package.json` / `package-lock.json` - Node.js dependencies for this service
 
 The `railway.json` is configured for:
 
-- Automatic builds with NIXPACKS
-- Health check endpoint at `/health` (tests both Redis and Supabase)
-- Automatic restarts on failure
+- Docker builds from `apps/api/Dockerfile`
+- Start command `node dist/api/src/index.js`
+- Automatic restarts on failure (up to 10 retries)
+
+The API also exposes a `/health` endpoint (tests both Redis and Supabase) that can be used as a Railway health check.
 
 **Service Configuration:**
 
@@ -374,14 +382,12 @@ To add additional backend services:
 
 1. Create new service directory under `apps/` (e.g., `apps/worker/`)
 2. Add service-specific configuration files:
-   - `railway.json` - Deployment config for this service
-   - `.railwayignore` - Files to exclude from deployment
-   - `nixpacks.toml` - Build configuration (Node.js 22)
+   - `Dockerfile` - Build configuration (Node.js 24; copy `apps/shared/` too if the service uses shared types)
    - `package.json` / `package-lock.json` - Node.js dependencies
    - `.env.example` - Environment variable template
 3. Create a new Railway service in your project
 4. Connect the same repository
-5. Set root directory to `apps/worker` in Railway settings
+5. Point the service at the new Dockerfile (set the config path to a service-specific `railway.json` with a `DOCKERFILE` builder, or set the Dockerfile path in the service settings)
 6. Deploy independently
 
 **Example structure for multiple services:**
@@ -392,15 +398,15 @@ apps/
 │   ├── package.json
 │   └── ...
 ├── api/              # Express + tRPC API service
-│   ├── railway.json
+│   ├── Dockerfile
 │   ├── package.json
 │   └── ...
 ├── worker/           # Background worker service
-│   ├── railway.json
+│   ├── Dockerfile
 │   ├── package.json
 │   └── ...
 └── websocket/        # WebSocket service
-    ├── railway.json
+    ├── Dockerfile
     ├── package.json
     └── ...
 ```
@@ -461,6 +467,7 @@ This template includes comprehensive documentation for AI-assisted development:
 - **CLAUDE.md**: Comprehensive development guidelines, coding standards, workflows, and best practices
 - **AGENTS.md**: Universal entry point for AI agents (redirects to CLAUDE.md)
 - **docs/AGENTS_APPENDLOG.md**: Decision log for tracking architectural choices and learnings
+- **.mcp.json**: Preconfigured MCP servers for AI agents — Vercel (HTTP), Railway, and Supabase (read-only; requires `SUPABASE_ACCESS_TOKEN` in your environment)
 
 When working with AI assistants, they should:
 
@@ -538,29 +545,31 @@ The pre-commit hook ensures high code quality by catching issues early before th
 
 ### Testing
 
-Frontend:
-
-```bash
-cd apps/web
-npm test
-```
-
-Backend:
+Backend (unit tests via `node:test` + `tsx`, plus type checking):
 
 ```bash
 cd apps/api
+npm test           # runs src/**/*.test.ts
+npm run type-check
+```
+
+Frontend (no test runner is configured yet — type checking is the gate):
+
+```bash
+cd apps/web
 npm run type-check
 ```
 
 ## API Health
 
-The Express backend provides the following endpoints:
+The Express backend provides the following endpoints (the `/trpc/*` endpoints require an `x-trpc-source` header — any value):
 
-- Infrastructure probe: `http://localhost:8000/health` (minimal, for Railway/uptime checks)
+- Infrastructure probe: `http://localhost:8000/health` (minimal, for Railway/uptime checks; no header needed)
 - Health check: `http://localhost:8000/trpc/health.check` (detailed service status via tRPC)
 - Redis test: `http://localhost:8000/trpc/redis.test`
 - Supabase test: `http://localhost:8000/trpc/supabase.test`
 - Langfuse test: `http://localhost:8000/trpc/langfuse.test`
+- Prompt rendering: `http://localhost:8000/trpc/langfuse.getPrompt` (codebase prompts from `apps/api/src/prompts/`)
 - API info: `http://localhost:8000/trpc/info.get`
 
 ## Common Tasks
@@ -599,18 +608,11 @@ Content sources are auto-detected (no `content` array needed). To scan additiona
 
 ### Database Migrations
 
-If using Prisma:
+Migrations live in `apps/shared/supabase/migrations/` as `.up.sql`/`.down.sql` pairs and are **documentation only** — they are never executed programmatically. Run them manually in the Supabase web UI (SQL Editor). Each `.up.sql` must be idempotent, start with fail-early guards, and include explicit `GRANT` + RLS statements; each `.down.sql` rolls back in reverse order. See CLAUDE.md ("SQL Migrations") for the full rules.
+
+After schema changes, regenerate the TypeScript types:
 
 ```bash
-cd apps/api
-npx prisma migrate dev --name "description"
-npx prisma migrate deploy  # Production
-```
-
-If using Supabase migrations directly:
-
-```bash
-# Regenerate TypeScript types after schema changes
 npx supabase gen types typescript --project-id YOUR_ID > apps/shared/supabase/types.ts
 ```
 

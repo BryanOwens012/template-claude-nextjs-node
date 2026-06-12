@@ -29,16 +29,22 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{js,ts,jsx,tsx,json,css}": ["biome check --write --no-errors-on-unmatched", "biome format --write --no-errors-on-unmatched"],
+    "*.{js,ts,jsx,tsx,json,css}": [
+      "biome check --write --no-errors-on-unmatched",
+      "biome format --write --no-errors-on-unmatched"
+    ],
     "*.md": "prettier --write",
     "*.sql": "npx sql-formatter --fix -l postgresql",
-    "*.sh": ["shfmt --write --simplify", "shellcheck"]
+    "*.sh": [
+      "shfmt --write --simplify",
+      "shellcheck"
+    ]
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.11",
+    "@biomejs/biome": "2.4.16",
     "husky": "^9.1.7",
-    "lint-staged": "^16.4.0",
-    "prettier": "^3.8.2",
-    "sql-formatter": "15.7.3"
+    "lint-staged": "^17.0.7",
+    "prettier": "^3.8.4",
+    "sql-formatter": "15.8.1"
   }
 }
