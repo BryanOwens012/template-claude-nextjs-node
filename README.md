@@ -42,6 +42,14 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 - **Observability**: Langfuse (optional: tracing, sessions; prompts live in the codebase at `apps/api/src/prompts/`)
 - **Deployment**: Railway (API + Redis plugin)
 
+### Why tRPC (not REST)?
+
+We intentionally chose tRPC over a REST API. The API is consumed only by our own TypeScript frontend, so we get end-to-end type safety with zero codegen: the web app imports the `AppRouter` _type_ directly from `apps/api/src/trpc/router.ts`, and every procedure's input/output types (defined once as Zod schemas) flow into React components. There is no OpenAPI spec to maintain and no client to regenerate — the contract _is_ the code, so it can never drift.
+
+This matters doubly for AI-assisted development (a core goal of this template). With REST, a coding agent's most common failure mode — hallucinating a plausible endpoint or payload shape — surfaces only at runtime as a 404. With tRPC it's a compile error caught by a cheap `tsc` run. Call sites are typed property accesses (`trpc.health.check`) rather than URL strings, so agents (and humans) can discover the full API surface by reading the routers, find every caller mechanically, and verify cross-stack refactors exhaustively with the typechecker instead of needing the app running.
+
+It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs to `/trpc/*`), so `curl`, CORS, load balancers, and Railway deployment all work as usual. The trade-off: there's no language-neutral spec, so if you ever need to expose an API to third parties or non-TypeScript clients, add a REST/OpenAPI layer alongside for that surface.
+
 ## Project Structure
 
 ```
