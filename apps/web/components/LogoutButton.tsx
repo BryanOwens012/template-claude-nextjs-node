@@ -2,13 +2,14 @@
 
 import posthog from 'posthog-js';
 import { useState } from 'react';
+import LoadingDialog from '@/components/ui/LoadingDialog';
 import { createClient } from '@/lib/supabase/client';
 
 const LogoutButton = () => {
-  const [loading, setLoading] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    setLoading(true);
+    setIsLoggingOut(true);
     try {
       const supabase = createClient();
       await supabase.auth.signOut();
@@ -17,19 +18,22 @@ const LogoutButton = () => {
       window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
-      setLoading(false);
+      setIsLoggingOut(false);
     }
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleLogout}
-      disabled={loading}
-      className="text-sm text-gray-600 hover:text-gray-900 disabled:cursor-not-allowed"
-    >
-      {loading ? 'Logging out...' : 'Log out'}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={handleLogout}
+        disabled={isLoggingOut}
+        className="text-sm text-gray-600 hover:text-gray-900 disabled:cursor-not-allowed"
+      >
+        {isLoggingOut ? 'Logging out...' : 'Log out'}
+      </button>
+      <LoadingDialog isLoading={isLoggingOut} label="Logging out…" />
+    </>
   );
 };
 
