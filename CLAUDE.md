@@ -1,6 +1,6 @@
 # Claude Code Instructions
 
-As a reference, this file is organized as follows: **Project Overview** → what this template is and its tech stack; **Development Guidelines** → how to behave and work (respond in words first; be liberal with tools/MCPs), code quality, TS/React/Express style, dependency management, code organization, testing, security posture, performance & prefetching, and git workflow; **LLM Calls** → prompt caching doctrine and Langfuse tracing/prompt policy + integration patterns; **Common Pitfalls** → frequent mistakes to avoid; **Decision Logging** → the AGENTS_APPENDLOG discipline; **Deployment** → Vercel (web) and Railway (api); **Project-Specific Patterns** → env vars, tRPC integration, CORS, SQL migrations, Supabase types/keys; **Verification Checklist** → pre-completion gates; **Agent Session Logging** + **Agent Collaboration** → multi-agent etiquette; **Template Customization** → how to adapt this template to a new project.
+As a reference, this file is organized as follows: **Project Overview** → what this template is and its tech stack; **Development Guidelines** → how to behave and work (respond in words first; be liberal with tools/MCPs), code quality, TS/React/Express style, dependency management, code organization, testing, security posture, performance & prefetching, and git workflow; **LLM Model Selection** + **LLM Calls** → model/reasoning-choice doctrine, prompt caching + cache pre-warming, and Langfuse tracing/prompt policy + integration patterns; **Common Pitfalls** → frequent mistakes to avoid; **Decision Logging** → the AGENTS_APPENDLOG discipline; **Deployment** → Vercel (web) and Railway (api); **Project-Specific Patterns** → env vars, tRPC integration, CORS, SQL migrations, Supabase types/keys; **Verification Checklist** → pre-completion gates; **Agent Session Logging** + **Agent Collaboration** → multi-agent etiquette; **Template Customization** → how to adapt this template to a new project.
 
 ## Project Overview
 
@@ -328,11 +328,37 @@ The template ships reusable primitives for this doctrine in `apps/web/lib/prefet
 - **Never squash commits or otherwise rewrite git history unless explicitly authorized.** That includes squash-merges, interactive-rebase squashing, `git commit --amend` on already-pushed commits, and force-pushing. Rewriting history is dangerous — it discards commits and context and can clobber work.
 - When integrating a branch, **prefer a normal merge commit** (over squash- or rebase-merge) whenever possible.
 
+## LLM Model Selection
+
+When writing or reviewing code that calls an LLM — or when the user asks which model to use — never default to a single "best practice" model without thinking through the specific usage. The right model/reasoning combo depends on several factors, and the optimal choice is often not the obvious default. Always **present the user with options and tradeoffs** rather than silently picking one.
+
+**Factors to reason through:**
+
+- **Who uses this call?** A background batch job (no human waiting) tolerates higher latency and can use a larger model for accuracy. A customer-facing feature needs fast time-to-first-token and should prefer a lighter model or adaptive reasoning.
+- **Latency requirements.** Streaming to a live user? Minimize TTFT — prefer smaller models, `effort: 'low'` or `'medium'`, and skip thinking on simple paths (`thinking: { type: 'adaptive' }`). Asynchronous enrichment pipeline? Latency doesn't matter; accuracy does.
+- **Accuracy and reasoning needs.** Simple classification, extraction, or slot-filling → smaller/faster model (e.g. Haiku). Multi-step reasoning, SQL generation, complex analysis → a reasoning-capable model at the appropriate effort level. Don't pay for reasoning on calls that don't need it; don't skimp on it for calls that do.
+- **Tool use.** Heavy agentic tool loops (multiple round-trips, SQL generation, web search) benefit from reasoning. Single-tool structured-extraction calls usually don't.
+- **Context length.** Does the call need long-context (large documents, long conversation history)? Some models handle this better or more cheaply than others.
+- **Cost.** A call made once per user action has a different cost profile than one made per row in a 100k-row enrichment job. Match the model tier to the volume and business value.
+
+**Reasoning / thinking / effort knobs (Anthropic):**
+
+| Setting                          | When to use                                                                            |
+| -------------------------------- | -------------------------------------------------------------------------------------- |
+| No thinking (default)            | Fast, simple calls — classification, slot-fill, short generation                       |
+| `thinking: { type: 'adaptive' }` | Mixed workloads — simple queries skip thinking, hard ones use it; minimal TTFT penalty |
+| `thinking: { type: 'enabled' }`  | Always reason — analytics, complex SQL, multi-hop questions                            |
+| `effort: 'low'`                  | Latency-critical, low-complexity                                                       |
+| `effort: 'medium'`               | Balanced; good default for interactive tool-use calls                                  |
+| `effort: 'high'` (default)       | High-stakes, slow-path, or batch accuracy work                                         |
+
+Present these options explicitly when a model choice is ambiguous. The best combo is sometimes counterintuitive — e.g., a smaller model with full thinking can outperform a larger model without it on reasoning tasks, at lower cost and similar latency.
+
 ## LLM Calls (Prompt Caching & Observability)
 
-### Aggressive Prompt Caching
+### Aggressive Prompt Caching + Cache Pre-Warming
 
-For **all LLM calls, regardless of provider**, as long as the provider offers prompt caching, always be looking for opportunities to implement aggressive prompt caching. Prompt caching dramatically cuts cost (cached input tokens are ~50–90% cheaper depending on provider) and latency (often up to ~80% faster time-to-first-token). Whenever you write or review code that calls an LLM, check whether the prompt is structured to maximize cache hits — and restructure it if not. Provider caching APIs, pricing, and TTLs evolve — search the internet for the provider's current prompt-caching docs and best practices when implementing or reviewing (the provider notes below are a snapshot, not the source of truth).
+For **all LLM calls, regardless of provider**, always look for opportunities to implement aggressive prompt caching and to pre-warm the cache so it is always hot when real requests arrive. Prompt caching is a near-free win: cached input tokens are ~50–90% cheaper depending on provider, and time-to-first-token drops by up to ~80%. Pre-warming ensures bursty or low-traffic workloads don't pay cold-cache prices — the warmer keeps the cache alive between real requests. Whenever you write or review code that calls an LLM, check whether the prompt is structured to maximize cache hits and whether a background pre-warmer is warranted — and add both if not. Provider caching APIs, pricing, and TTLs evolve — search the internet for the provider's current prompt-caching docs and best practices when implementing or reviewing (the provider notes below are a snapshot, not the source of truth).
 
 #### The one invariant: caching is an exact prefix match
 
