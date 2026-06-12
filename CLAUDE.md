@@ -184,8 +184,17 @@ apps/web/
 ├── components/           # React components
 │   ├── providers/       # Context providers
 │   │   └── TRPCProvider.tsx  # tRPC + TanStack Query + auth headers
+│   ├── ui/
+│   │   └── LoadingDialog.tsx # 200ms-delayed, scrim-less loading dialog + useDelayedLoading
+│   ├── PagePrefetcher.tsx    # Mounted in root layout; prefetches all other top-level pages
 │   └── LogoutButton.tsx
 ├── lib/                 # Utilities and helpers
+│   ├── prefetch/        # Aggressive prefetching primitives
+│   │   ├── routes.ts    # topLevelRoutes const (register new top-level pages here)
+│   │   ├── usePrefetchPages.ts      # Top-level pages: routes + data queries
+│   │   ├── useHoverPrefetch.ts      # 200ms hover-intent row prefetch handlers
+│   │   ├── usePaginationPrefetch.ts # Warm next + previous paginated pages
+│   │   └── idle.ts      # runWhenIdle (requestIdleCallback wrapper)
 │   ├── supabase/        # Supabase clients
 │   │   ├── client.ts    # Browser client
 │   │   ├── server.ts    # Server client (RSC)
@@ -281,12 +290,18 @@ railway.json           # Railway deployment config (Dockerfile builder → apps/
 
 ### Aggressive Prefetching (Pages & Queries)
 
-In web apps with a small number of pages, prefetch aggressively so navigation feels instant. "Prefetch" always means **both** the frontend (route/components/bundle) **and** warming the underlying data queries — prefetching the UI shell without its data is only half the job. All prefetching must be background, deferred, and non-blocking: it must never delay or compete with rendering the page the user is actually on.
+In web apps, prefetch aggressively so navigation feels instant — regardless of the size of the app (e.g. the number of pages). "Prefetch" always means **both** the frontend (route/components/bundle) **and** warming the underlying data queries — prefetching the UI shell without its data is only half the job. All prefetching must be background, deferred, and non-blocking: it must never delay or compete with rendering the page the user is actually on.
 
 - **Top-level pages**: when the user lands on any top-level page, prefetch all the other top-level pages.
 - **Tabs**: when the user lands on a top-level page that has tabs, prefetch all the other tabs of that page.
 - **Table rows (hover intent)**: on a page/tab with a table, if the user hovers over a row for more than 200ms, prefetch the result of clicking that row.
-- **Paginated tables**: when the user is on one page of a paginated table, prefetch the contents and queries of the next page.
+- **Paginated tables**: when the user is on one page of a paginated table, prefetch the contents and queries of the next and previous pages.
+
+#### Loading Indicators (When Loading Is Unavoidable)
+
+When a user action (clicking a button, etc.) triggers loading, show a small loading dialog only if the loading takes more than 200ms — never instantly. Do **not** accompany the loading dialog with a scrim/backdrop: the scrim causes a flash, and that flash is bad UI.
+
+The template ships reusable primitives for this doctrine in `apps/web/lib/prefetch/` (route + tRPC query prefetching, hover-intent row prefetch, paginated next/prev warming) and `apps/web/components/ui/LoadingDialog.tsx` (the 200ms-delayed, scrim-less loading dialog) — use them rather than reinventing.
 
 ### Git Workflow
 

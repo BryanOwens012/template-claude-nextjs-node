@@ -178,3 +178,11 @@ When starting a new project with this template:
 **Rationale:** The review checklist (spec compliance, all code paths happy/sad, conventions, DRY, fail-closed) is from the user's standing instructions; both review agents independently confirmed the same two prompt bugs.
 **Impact:** `langfuse.getPrompt` breaking change: unknown names now 404 instead of HTTP 200 with a fallback prompt (no existing callers). ESLint fully out of the web app — Biome is the single linter.
 **Learnings:** `String.prototype.replaceAll` with a _string_ pattern still interprets `$` patterns in a string replacement — use a function replacer for literal substitution. `'toString' in obj` is true for any plain object; `Object.hasOwn` is the registry-membership check. `next lint` no longer exists in Next 16 (it parses `lint` as a directory argument).
+
+## 2026-06-11 17:34 PT - Aggressive Prefetching Doctrine + Primitives
+
+**Type:** [Decision | Implementation]
+**Change:** Updated CLAUDE.md prefetching doctrine to apply regardless of app size (was "small number of pages"), added previous-page warming to the paginated-table rule, and added the Loading Indicators rule (show a small loading dialog only after 200ms, never with a scrim). Implemented the doctrine in apps/web: `lib/prefetch/` (usePrefetchPages, useHoverPrefetch, usePaginationPrefetch, runWhenIdle, topLevelRoutes registry), `components/PagePrefetcher.tsx` mounted in the root layout, and `components/ui/LoadingDialog.tsx` (+ useDelayedLoading) wired into LogoutButton.
+**Rationale:** Prefetching both route bundles and data queries makes navigation feel instant; deferring via requestIdleCallback keeps it non-blocking. A 200ms-delayed, scrim-less dialog avoids flash on fast operations.
+**Impact:** New top-level pages must be registered in `lib/prefetch/routes.ts` and their queries in `usePrefetchPages`. Tables/tabs added later should use the hover/pagination hooks rather than reinventing.
+**Learnings:** `'requestIdleCallback' in window` narrows `window` to `never` under current DOM lib types — use `typeof window.requestIdleCallback === 'function'` instead.

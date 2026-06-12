@@ -1,4 +1,5 @@
 import './globals.css';
+import { PagePrefetcher } from '@/components/PagePrefetcher';
 import { Providers } from '@/components/providers/TRPCProvider';
 
 // Import metadata configuration
@@ -21,7 +22,10 @@ const RootLayout = ({
         )}
       </head>
       <body className="antialiased">
-        <Providers>{children}</Providers>
+        <Providers>
+          <PagePrefetcher />
+          {children}
+        </Providers>
       </body>
     </html>
   );
