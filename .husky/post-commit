@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+# Post-commit: the only hook that fires when a CONFLICTED merge is finished.
+#
+# `git merge` runs post-merge only when the merge completes on its own. A merge that stops
+# on a conflict is finished by `git commit`, which runs the commit hooks instead, so
+# post-merge never sees it. Those are the merges most likely to carry a dependency change.
+#
+#   clean merge                    -> post-merge fires, post-commit does not
+#   conflicted merge, then commit  -> post-commit fires, post-merge does not
+#   ordinary commit                -> post-commit fires, one parent
+#
+# The three are disjoint, so gating on a second parent is exact: it closes the gap without
+# ever installing twice for one operation.
+#
+# A conflicted cherry-pick/revert is a ONE-parent commit and stays uncovered on purpose.
+# Gating on "this commit touched a lockfile" would cover it, and would also re-run npm
+# install right after you commit a lockfile deliberately, letting tooling rewrite it.
+git rev-parse --verify --quiet HEAD^2 >/dev/null 2>&1 || exit 0
+
+# HEAD^1 is the pre-merge tip of the branch merged INTO: the same range post-merge would
+# have used. HEAD@{1} is wrong here; resolving a conflict can leave several reflog entries
+# between the merge starting and the commit landing.
+root=$(git rev-parse --show-toplevel) || exit 0
+sh "$root/scripts/install-changed-lockfiles.sh" HEAD^1 HEAD post-commit

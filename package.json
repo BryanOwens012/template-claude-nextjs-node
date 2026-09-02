@@ -4,7 +4,7 @@
   "description": "Next.js + Node.js template monorepo with tRPC v11 + TanStack Query",
   "private": true,
   "scripts": {
-    "typecheck": "npm run build:api && npm run typecheck:web && npm run typecheck:railway",
+    "typecheck": "npm run build:api && npm run typecheck:api && npm run typecheck:web && npm run typecheck:railway",
     "typecheck:api": "cd apps/api && npx tsc --noEmit",
     "typecheck:web": "cd apps/web && npx tsc --noEmit",
     "typecheck:railway": "tsc --noEmit -p .railway",
@@ -26,7 +26,11 @@
     "format:sql": "git ls-files '*.sql' | xargs -I {} npx sql-formatter --fix -l postgresql {}",
     "format:sql:check": "git ls-files '*.sql' | xargs -I {} npx sql-formatter -l postgresql {}",
     "format:shell": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shfmt --write --simplify'",
-    "format:shell:check": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shfmt --diff'",
+    "format:shell:check": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shfmt --diff --simplify'",
+    "check:hooks": "bash scripts/check-hooks-installed.sh",
+    "worktree:new": "bash scripts/new-worktree.sh",
+    "test:scripts:sh": "bash scripts/run-shell-tests.sh",
+    "test:api": "cd apps/api && npm test",
     "prepare": "husky"
   },
   "lint-staged": {

@@ -116,7 +116,14 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 │           ├── types.ts              # Generated Supabase types
 │           └── migrations/           # SQL migrations (.up.sql/.down.sql pairs, run manually)
 ├── scripts/
+│   ├── install-changed-lockfiles.sh  # npm install per changed lockfile (shared by the sync hooks)
+│   ├── check-hooks-installed.sh      # npm run check:hooks
+│   ├── new-worktree.sh               # npm run worktree:new
+│   ├── run-shell-tests.sh            # npm run test:scripts:sh
+│   ├── tests/                        # *.test.sh suites for the scripts above
 │   └── test_services.sh      # Service connectivity test script
+├── .husky/                   # pre-commit + lockfile-sync hooks (post-merge/rewrite/checkout/commit)
+├── .claude/gauntlet.json     # Declared pre-merge quality gate
 ├── .entire/                  # entire.io agent session logger (see below)
 │   └── settings.json         # Logging config (committed; logs gitignored internally)
 ├── .mcp.json                 # MCP servers for AI agents (Vercel, Railway, Supabase read-only)
@@ -483,29 +490,48 @@ This template includes automated code quality checks powered by **Biome**, **Pre
 **Pre-commit Hook** — Runs automatically before each commit:
 
 ```bash
-npm run build:api    # Build API (emits declarations needed by web typecheck)
-npm run typecheck:web # Type check frontend against API declarations
-npx lint-staged      # Auto-format and lint only staged files
+npm run typecheck    # build:api → typecheck:api → typecheck:web → typecheck:railway
+npx lint-staged      # Auto-format and lint only staged files (safe fixes only)
 ```
 
-If any step fails, the commit is blocked. Fix issues and try again.
+If any step fails, the commit is blocked. Fix issues and try again. `typecheck:api` runs plain `tsc --noEmit` over `apps/api`, the same file set the Railway Dockerfile compiles, so the deploy is never the first thing to notice a type error.
+
+**Lockfile-sync hooks** — Whenever a git operation changes a `package-lock.json` under an unchanged `node_modules`, the matching workspace is reinstalled automatically (`npm install`, once per changed lockfile). All four hooks call one shared script, `scripts/install-changed-lockfiles.sh`, and differ only in the rev range they pass:
+
+| Hook            | Fires on                                      | Range              |
+| --------------- | --------------------------------------------- | ------------------ |
+| `post-merge`    | `git pull`, `git merge` (fast-forward too)    | `HEAD@{1}..HEAD`   |
+| `post-rewrite`  | `git pull --rebase`, `git rebase`             | `ORIG_HEAD..HEAD`  |
+| `post-checkout` | branch switch (not `git checkout -- <file>`)  | previous..new HEAD |
+| `post-commit`   | `git commit` finishing a **conflicted** merge | `HEAD^1..HEAD`     |
+
+The sync is fail-open: it never blocks the git operation, a failed install prints a warning to stderr, and if `npm install` rewrites a lockfile it says so. Not covered, deliberately: `git reset --hard` (git has no hook for it), a conflicted `cherry-pick`/`revert`, `commit --amend`, and an ordinary commit that edits a lockfile on purpose. A tree provisioned by copying rather than by a git operation (a fresh clone, an interrupted install) must run the install itself.
+
+**Hook liveness** — `core.hooksPath` is `.husky/_`, which husky generates on a **root** `npm install`. Until that runs (a fresh `git worktree add`, `--ignore-scripts`), git runs no hooks and says nothing. `npm run check:hooks` (pure shell, needs nothing installed) fails loudly in that state and is the first check in `.claude/gauntlet.json`. `npm run worktree:new -- <path> <branch> [base]` creates a worktree, runs `npm ci` in every workspace (root first, so hooks arm), builds the API, and ends by running that check.
 
 **Available npm scripts** (from root directory):
 
 ```bash
-# Run all checks together (same as pre-commit)
+# Run all checks together
 npm run typecheck && npm run build && npm run format && npm run lint
 
 # Run checks without fixing (just report issues)
 npm run format:check
 npm run lint:check
 
+# Hooks, worktrees, and shell tests
+npm run check:hooks                              # fail if git would run no hooks here
+npm run worktree:new -- ../repo.feat bryan/feat  # provisioned worktree, hooks verified
+npm run test:scripts:sh                          # every scripts/**/*.test.sh, discovered by find
+npm run test:api                                 # apps/api unit tests
+
 # Configuration files
 .editorconfig             # Shell script formatting standards
 biome.json               # JS/TS formatting and linting rules
 .prettierrc              # Markdown formatter configuration
 .sql-formatter.json      # PostgreSQL SQL formatting
-.husky/pre-commit        # Pre-commit hook script
+.husky/                  # pre-commit + the four lockfile-sync hooks
+.claude/gauntlet.json    # Declared pre-merge quality gate (check:hooks first)
 ```
 
 **Configuration details:**

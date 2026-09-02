@@ -1,0 +1,20 @@
+{
+  "_doc": "The declared pre-merge quality gate for this repo. run-gauntlet.sh runs each check in order and reads its exit code, so 'the checks pass' is evidence rather than a claim. The first failure aborts the run, so checks are ordered cheapest first. check:hooks is FIRST and depends on nothing installed: a working tree where git runs no hooks must not be able to report a green gate. Every check must be runnable standalone as an `npm run` from the repo root.",
+  "checks": [
+    { "name": "check-hooks", "run": "npm run check:hooks" },
+    { "name": "format-js", "run": "npm run format:js:check" },
+    { "name": "format-md", "run": "npm run format:md:check" },
+    { "name": "format-shell", "run": "npm run format:shell:check" },
+    { "name": "format-sql", "run": "npm run format:sql:check" },
+    { "name": "lint-js", "run": "npm run lint:js:check" },
+    { "name": "lint-shell", "run": "npm run lint:shell:check" },
+    { "name": "typecheck", "run": "npm run typecheck" },
+    { "name": "script-tests", "run": "npm run test:scripts:sh" },
+    { "name": "api-tests", "run": "npm run test:api" }
+  ],
+  "allowedSuppressions": [
+    "shellcheck disable=SC1090 # helper is generated above from the script under test"
+  ],
+  "untestedThreshold": 100,
+  "checkTimeoutSeconds": 900
+}
