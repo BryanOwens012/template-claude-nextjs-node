@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["apps/**/*.{js,jsx,ts,tsx,json,jsonc,jsonl}"],
+    "includes": ["apps/**/*.{js,jsx,ts,tsx,json,jsonc,jsonl}", ".railway/**/*.{ts,json}"],
     "ignoreUnknown": true
   },
   "formatter": {

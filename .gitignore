@@ -33,7 +33,6 @@ postgres_password.txt
 
 # Cloud Provider Credentials
 .supabase/
-.railway/
 .vercel
 
 # ============================================
@@ -235,8 +234,8 @@ temp/
 # ============================================
 # DEPLOYMENT & INFRASTRUCTURE
 # ============================================
-# Railway
-.railway/
+# Railway (the IaC file .railway/railway.ts is committed; only plan artifacts are ignored)
+railway-plan.json
 
 # Vercel
 .vercel

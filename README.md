@@ -124,7 +124,7 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 ├── CLAUDE.md                 # Comprehensive development guidelines and best practices
 ├── biome.json                # JS/TS formatting and linting rules
 ├── vercel.json               # Vercel deployment config
-├── railway.json              # Railway deployment config (Dockerfile builder → apps/api)
+├── .railway/                 # Railway Infrastructure as Code (railway.ts declares API, Redis, Keep-Alive)
 ├── .vercelignore             # Vercel ignore patterns
 ├── .gitignore                # Comprehensive ignore patterns
 └── README.md                 # This file
@@ -344,36 +344,25 @@ The `vercel.json` is simplified — Vercel auto-detects Next.js:
 
 ### Backend (Railway)
 
-Each service under `apps/` can be deployed independently to Railway.
+The Railway project is declared as [Infrastructure as Code](https://docs.railway.com/infrastructure-as-code) in `.railway/railway.ts` — the `API` service (Dockerfile build from `apps/api/Dockerfile`, start command, restart-on-failure policy), its `Redis` database, the `Keep-Alive` scheduled function, and the environment variables each one needs. Config as Code (`railway.json`) is deprecated and stops being read on 2026-12-01, so there is no `railway.json` in this repo.
 
-**Deploying the API service:**
+**Deploying:**
 
-1. Create a new service in Railway
-2. Connect your repository (via GitHub integration)
-3. **Keep the service root directory at the repo root** — the root `railway.json` uses the `DOCKERFILE` builder pointing at `apps/api/Dockerfile`, and the Dockerfile needs repo-root build context to copy `apps/shared/` alongside `apps/api/`
-4. Railway will automatically detect the root `railway.json` and build the Dockerfile
-5. **Add Redis plugin**: Click "New" → "Database" → "Add Redis"
-   - Railway will automatically set the `REDIS_URL` environment variable
-   - The API is configured with Railway-compatible settings (socket family 0 for IPv6/IPv4 dual-stack)
-6. **Set Supabase environment variables** in Railway dashboard:
-   - `SUPABASE_URL`: Your Supabase project URL
-   - `SUPABASE_SECRET_KEY`: Your Supabase secret key (starts with `sb_secret_`) (keep secret!)
-7. Set other environment variables (CORS_ORIGINS, etc.)
-8. Deploy
+1. Install the [Railway CLI](https://docs.railway.com/cli) (5.42.1 or newer) and run `npm install` at the repo root (the IaC file imports the `railway` package)
+2. `railway login`, then `railway link` in the repo root to pick the project and environment (create the project in the Railway dashboard first if it does not exist)
+3. Edit `.railway/railway.ts` for your project: the `REPO` constant, the project name, and any extra variables
+4. `railway config plan` — read-only preview. The plan lists every change and marks destructive ones; **omit means delete**, so a resource that exists in Railway but is missing from the file shows up as a destroy
+5. `railway config apply` — re-plans and applies after you confirm
+6. Set secret values (`SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `CORS_ORIGINS`, …) in the Railway dashboard. They are declared as `preserve()` in the file, which keeps whatever value Railway holds and never writes a secret into git
 
 **Deployment configuration files:**
 
-- `railway.json` (repo root) - Deployment configuration (Dockerfile builder, start command, restart policy)
-- `apps/api/Dockerfile` - Build configuration (`node:24-alpine`, `npm ci` + `npm run build`)
+- `.railway/railway.ts` - The Railway environment (services, database, function, variables). `npm run typecheck:railway` checks it against the SDK's types, which catches a misspelled key that Railway would otherwise accept silently
+- `.railway/README.md` - Plan/apply workflow and the rules for editing the file
+- `apps/api/Dockerfile` - Build configuration (`node:24-alpine`, `npm ci` + `npm run build`); the build context stays at the repo root so it can copy `apps/shared/` alongside `apps/api/`
 - `apps/api/package.json` / `package-lock.json` - Node.js dependencies for this service
 
-The `railway.json` is configured for:
-
-- Docker builds from `apps/api/Dockerfile`
-- Start command `node dist/api/src/index.js`
-- Automatic restarts on failure (up to 10 retries)
-
-The API also exposes a `/health` endpoint (tests both Redis and Supabase) that can be used as a Railway health check.
+The API also exposes a `/health` endpoint (tests both Redis and Supabase) that can be used as a Railway health check — add `healthcheck: '/health'` to the service in `.railway/railway.ts` to enable it.
 
 **Service Configuration:**
 
@@ -391,10 +380,9 @@ To add additional backend services:
    - `Dockerfile` - Build configuration (Node.js 24; copy `apps/shared/` too if the service uses shared types)
    - `package.json` / `package-lock.json` - Node.js dependencies
    - `.env.example` - Environment variable template
-3. Create a new Railway service in your project
-4. Connect the same repository
-5. Point the service at the new Dockerfile (set the config path to a service-specific `railway.json` with a `DOCKERFILE` builder, or set the Dockerfile path in the service settings)
-6. Deploy independently
+3. Declare the service in `.railway/railway.ts` with the same repo source, `build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/worker/Dockerfile' }`, its start command, and its variables, then add it to the project's `resources`
+4. `railway config plan`, then `railway config apply`
+5. Deploys independently on every push
 
 **Example structure for multiple services:**
 
