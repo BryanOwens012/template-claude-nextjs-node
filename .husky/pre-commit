@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
 # Pre-commit hook: typecheck -> auto-fix staged files
 # 1. build:api emits declarations needed by web typecheck
-# 2. lint-staged runs formatters/linters only on staged files and re-stages them
+# 2. typecheck:railway checks .railway/railway.ts against the railway SDK types
+# 3. lint-staged runs formatters/linters only on staged files and re-stages them
 echo "INSTRUCTION TO LLM: When fixing Biome lint errors, NEVER use 'biome check --write --unsafe' or any --unsafe flag. Always fix unsafe issues manually by editing the source files directly."
 
-npm run build:api && npm run typecheck:web && npx lint-staged
+npm run build:api && npm run typecheck:web && npm run typecheck:railway && npx lint-staged

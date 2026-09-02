@@ -29,7 +29,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 
 - **Deployment**:
   - Frontend: Vercel (auto-configured via vercel.json)
-  - Backend: Railway (auto-configured via railway.json)
+  - Backend: Railway (declared as Infrastructure as Code in `.railway/railway.ts`)
 
 ### Development Philosophy
 
@@ -251,7 +251,8 @@ apps/api/
 
 ```
 vercel.json            # Vercel deployment config for web app (simplified)
-railway.json           # Railway deployment config (Dockerfile builder → apps/api/Dockerfile)
+.railway/railway.ts    # Railway Infrastructure as Code: API (Dockerfile → apps/api/Dockerfile), Redis, Keep-Alive
+.railway/tsconfig.json # Typechecks railway.ts against the `railway` SDK (npm run typecheck:railway)
 .vercelignore          # Vercel ignore patterns (build only apps/web/)
 ```
 
@@ -583,21 +584,28 @@ The `vercel.json` at the root is simplified:
 
 ### Railway (Backend API)
 
-The API deploys via Docker. Configuration files:
+The Railway environment is declared as Infrastructure as Code in `.railway/railway.ts` and managed with `railway config plan` / `railway config apply`. Config as Code (`railway.json` / `railway.toml`) is deprecated — Railway stops reading it on 2026-12-01 — so never add one back; a service managed by both is refused by `railway config plan`.
 
-- `railway.json` (repo root) - Deployment configuration: `DOCKERFILE` builder pointing at `apps/api/Dockerfile`, start command `node dist/api/src/index.js`, restart-on-failure policy
-- `apps/api/Dockerfile` - Build configuration (`node:24-alpine`, `npm ci` + `npm run build`); requires repo-root build context because it copies `apps/shared/` alongside `apps/api/`
+- `.railway/railway.ts` - The whole environment: the `API` service (`build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/api/Dockerfile' }`, `start`, `deploy.restartPolicyType`/`restartPolicyMaxRetries`), `redis('Redis')` wired into `REDIS_URL`, and the `Keep-Alive` function (`fn(...)` with `deploy.cronSchedule`, its script base64-encoded from `apps/cron/src/keep-alive.ts` into the start command). Every secret is `preserve()`; never write a value into this file
+- `.railway/tsconfig.json` + `npm run typecheck:railway` - Typechecks the file against the `railway` SDK. **This is the only check that catches an unknown key**: `railway config plan` forwards a misspelled key to Railway unchanged (verified: `dockerfilePathh` planned as a new setting), so run the typecheck before every plan
+- `apps/api/Dockerfile` - Build configuration (`node:24-alpine`, `npm ci` + `npm run build`); requires repo-root build context because it copies `apps/shared/` alongside `apps/api/`, so the service keeps `rootDirectory: '/'`
 - `apps/api/package.json` and `package-lock.json` - Node.js dependencies for this service
 
-**Setup for API service:**
+**Rules for editing `.railway/railway.ts`:**
 
-1. Create new Railway service
-2. Connect repository
-3. **Keep the service root directory at the repo root** so the root `railway.json` is detected and the Dockerfile gets repo-root build context
-4. Railway builds `apps/api/Dockerfile` per the root `railway.json`
-5. Add Redis plugin (Railway will set `REDIS_URL` automatically)
-6. Set environment variables (SUPABASE_URL, SUPABASE_SECRET_KEY, CORS_ORIGINS)
-7. Deploy
+- **Omit means delete.** `apply` removes any service, database, volume, or variable that exists in the environment but is not declared. Declare everything, and read the plan's destroy lines before confirming. `railway config pull --force` re-imports the live environment when the file has drifted
+- **Agents plan, Bryan applies.** `railway config plan` is read-only and allowed; `apply`, `init`, `pull`, and `migrate` change Railway or overwrite the file and are denied to agents by `guard-railway-readonly.sh`. From an unlinked clone, plan non-interactively with `RAILWAY_PROJECT_ID=<id> RAILWAY_ENVIRONMENT_ID=<id> railway config plan </dev/null` (the `config` subcommands accept no `-p`/`-e` flags)
+- **The SDK checks the CLI version by running the executable named in the `$_` env var.** A wrapper that execs the CLI (`perl -e 'exec ...'`, some `timeout` shims) leaves `$_` pointing at the wrapper and the plan fails with "requires Railway CLI 5.42.1 or newer" even on a current CLI; run `railway` directly
+- **Declare `networking.privateNetworkEndpoint`** for each service (`api`, `keep-alive`). Without it the plan reports a networking change on every run. Generated `*.up.railway.app` domains are not managed by the file; custom domains go in `domains: [...]`
+- **The file runs under Node with type stripping**, so keep it to erasable syntax (no `enum`, no parameter properties); `erasableSyntaxOnly` in its tsconfig enforces that. Node built-ins and `import.meta.url` work
+- Keys and enum values are the Railway service-config shape (`builder: 'DOCKERFILE'`, `restartPolicyType: 'ON_FAILURE'`); confirm any new one in `node_modules/railway/dist/index-*.d.ts` or the [DSL reference](https://docs.railway.com/infrastructure-as-code/reference) rather than from memory
+
+**Setup for a new deployment:**
+
+1. Create the Railway project, `railway login`, `railway link` in the repo root
+2. Update the `REPO` constant and project name in `.railway/railway.ts`
+3. `railway config plan`, then `railway config apply` (creates API, Redis, and Keep-Alive)
+4. Set secret values (SUPABASE_URL, SUPABASE_SECRET_KEY, CORS_ORIGINS) in the Railway dashboard
 
 **Why per-service configuration:**
 
@@ -615,10 +623,9 @@ To add additional backend services:
    - `Dockerfile` - Build config (Node.js 24+; copy `apps/shared/` too if the service uses shared types)
    - `package.json` and `package-lock.json` - Dependencies
    - `.env.example` - Environment template
-3. Create new Railway service in your project
-4. Connect same repository
-5. Point the service at the new Dockerfile (a service-specific `railway.json` with a `DOCKERFILE` builder, or set the Dockerfile path in the service settings)
-6. Deploy independently
+3. Declare it in `.railway/railway.ts` — same `github(REPO, ...)` source, `build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/worker/Dockerfile' }`, `start`, `networking.privateNetworkEndpoint`, and its variables — and add it to the project's `resources`
+4. `npm run typecheck:railway`, `railway config plan`, then `railway config apply`
+5. Deploys independently on every push
 
 **Example multi-service structure:**
 
