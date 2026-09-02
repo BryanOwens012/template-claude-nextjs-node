@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+# Post-rewrite: fires after `git rebase` and `git commit --amend`.
+#
+# This is the half of "reinstall after a pull" that post-merge cannot cover: `git pull
+# --rebase` never produces a merge commit, so it fires this hook instead, carrying exactly
+# the same dependency changes.
+#
+# $1 is the command that rewrote history. An amend only rewrites the author's own tip, so it
+# cannot introduce someone else's lockfile change; skipping it avoids a pointless npm
+# install on every amended commit.
+[ "${1:-}" = "rebase" ] || exit 0
+
+# ORIG_HEAD, not HEAD@{1}, and the difference is load-bearing: a rebase moves HEAD once per
+# replayed commit, so after replaying two commits HEAD@{1} is the previous replayed commit,
+# a range that does NOT contain the upstream lockfile change. The fallback only matters when
+# ORIG_HEAD is somehow unset, and is wrong in the same way, so it is a last resort rather
+# than an equivalent.
+root=$(git rev-parse --show-toplevel) || exit 0
+old=$(git rev-parse --verify --quiet ORIG_HEAD) || old='HEAD@{1}'
+sh "$root/scripts/install-changed-lockfiles.sh" "$old" HEAD post-rewrite

@@ -1,8 +1,17 @@
 #!/usr/bin/env sh
-# Pre-commit hook: typecheck -> auto-fix staged files
-# 1. build:api emits declarations needed by web typecheck
-# 2. typecheck:railway checks .railway/railway.ts against the railway SDK types
-# 3. lint-staged runs formatters/linters only on staged files and re-stages them
+# Pre-commit hook: typecheck -> auto-fix staged files.
+#
+# `npm run typecheck` is the single definition of "what must compile", shared with the
+# gauntlet (.claude/gauntlet.json) so this hook cannot check less than the gate does. It runs:
+#   1. build:api          `tsc` over apps/api with the same tsconfig the Railway Dockerfile
+#                         uses (tests included), so a type error fails here rather than in
+#                         the deploy; it also emits the declarations apps/web resolves
+#                         `@api/*` against
+#   2. typecheck:web      the Next.js app against those declarations
+#   3. typecheck:railway  .railway/railway.ts against the railway SDK types
+# then lint-staged runs safe formatters/linters on staged files and re-stages them.
+#
+# Never add an --unsafe autofix flag here. Fix Biome's unsafe findings by hand in the source.
 echo "INSTRUCTION TO LLM: When fixing Biome lint errors, NEVER use 'biome check --write --unsafe' or any --unsafe flag. Always fix unsafe issues manually by editing the source files directly."
 
-npm run build:api && npm run typecheck:web && npm run typecheck:railway && npx lint-staged
+npm run typecheck && npx lint-staged

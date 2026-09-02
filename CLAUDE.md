@@ -254,6 +254,14 @@ vercel.json            # Vercel deployment config for web app (simplified)
 .railway/railway.ts    # Railway Infrastructure as Code: API (Dockerfile → apps/api/Dockerfile), Redis, Keep-Alive
 .railway/tsconfig.json # Typechecks railway.ts against the `railway` SDK (npm run typecheck:railway)
 .vercelignore          # Vercel ignore patterns (build only apps/web/)
+.claude/gauntlet.json  # Declared pre-merge quality gate, cheapest check first (check:hooks)
+.husky/                # pre-commit, plus post-merge/post-rewrite/post-checkout/post-commit lockfile sync
+scripts/
+├── install-changed-lockfiles.sh  # Shared by the four sync hooks: npm install per changed lockfile
+├── check-hooks-installed.sh      # npm run check:hooks — fails when git would run no hooks here
+├── new-worktree.sh               # npm run worktree:new — worktree + npm ci + api build + hook check
+├── run-shell-tests.sh            # npm run test:scripts:sh — finds and runs every *.test.sh, bounded
+└── tests/*.test.sh               # bash suites for the scripts above, sandboxed, npm stubbed
 ```
 
 ### Testing Workflow
@@ -322,6 +330,17 @@ The template ships reusable primitives for this doctrine in `apps/web/lib/prefet
 **Pull requests:**
 
 - When opening a new PR on the human contributor's behalf, assign it to them (e.g. `gh pr create --assignee @me`, where `@me` resolves to the authenticated GitHub user — the human contributor, not the agent/assistant).
+
+**Git hooks (husky, committed under `.husky/`):**
+
+- **Hooks arm on the first ROOT `npm install`** (`prepare: husky` writes the gitignored `.husky/_` dispatchers). A per-app install does not arm them. `npm run check:hooks` says whether git would run any hooks in this tree; run it the moment a commit sails through without the checks you expected, and always in a new worktree.
+- **Create worktrees with `npm run worktree:new -- <path> <branch> [base]`**, never a bare `git worktree add`: the bare form inherits `core.hooksPath` from the shared config while `.husky/_` does not exist there, so git runs no hooks and reports nothing. The script installs every workspace (root first), builds the API that `apps/web` resolves `@api/*` against, and fails unless `check:hooks` passes.
+- **`pre-commit` runs `npm run typecheck` then `npx lint-staged`.** Keep `typecheck` the single definition of what must compile; the hook and the gauntlet both call it. lint-staged autofixes are safe-only; never add an `--unsafe` flag.
+- **Lockfile sync is four thin hooks around one script.** `post-merge`, `post-rewrite`, `post-checkout`, and `post-commit` each compute a rev range and call `scripts/install-changed-lockfiles.sh`, which runs `npm install` in every workspace whose `package-lock.json` changed in that range. Each hook's range is chosen from how that git operation moves HEAD and is not interchangeable: `HEAD@{1}` for a merge, `ORIG_HEAD` for a rebase (HEAD moves once per replayed commit), `$1..$2` for a branch checkout, `HEAD^1` for a conflicted merge finished by `git commit` (gated on `HEAD^2` existing). `post-checkout` skips while a rebase is in progress so `git pull --rebase` installs once, not twice.
+- **The sync is fail-open; the gates are fail-closed.** The sync never blocks a git operation: unresolvable revs exit 0, a failed install warns on stderr, and a lockfile that `npm install` rewrote is reported (review and commit it deliberately). `pre-commit` and `check:hooks` refuse with a message naming what is wrong.
+- **Not covered by the sync, deliberately:** `git reset --hard`, a conflicted `cherry-pick`/`revert` (one-parent commit), `commit --amend`, and an ordinary commit that edits a lockfile. Anything that provisions a tree by means other than a hook-firing git operation must run the install itself; the hook detects a lockfile _changing_, not an installed tree that disagrees with it.
+- **Every hook body runs under `sh -e`** (husky's dispatcher), so guard anything that may legitimately fail with `|| exit 0`. A misnamed hook file is a hook that never runs and never says so; `check:hooks` catches a missing dispatcher, not a misnamed body.
+- **Shell tests live in `scripts/tests/*.test.sh`** and are discovered by `find`, so a new suite cannot be added and silently never run. Each suite scrubs git's exported `GIT_*` pointers first, sandboxes in `mktemp -d`, stubs `npm` on `PATH` with a stub that drains stdin, and carries a positive control beside every "expect zero" assertion.
 
 **Git history & merging:**
 
@@ -564,6 +583,8 @@ All Langfuse features are **optional** and gracefully degrade if not configured.
 - ❌ Don't forget to close database/Redis connections on shutdown
 - ❌ Don't use `http-errors` in tRPC procedures — use `TRPCError` with the correct code
 - ❌ Don't forget to rebuild the API (`npm run build:api`) after changing tRPC routers — the web typecheck depends on emitted declarations
+- ❌ Don't create a worktree with a bare `git worktree add` — use `npm run worktree:new`, or git runs no hooks there until a root `npm install`
+- ❌ Don't read "Cannot find module ..." in pre-commit as a bug in your diff — it is usually a stale `node_modules`; if a hook did not reinstall, run `npm ci` in that workspace
 
 ## Deployment
 

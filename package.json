@@ -26,7 +26,11 @@
     "format:sql": "git ls-files '*.sql' | xargs -I {} npx sql-formatter --fix -l postgresql {}",
     "format:sql:check": "git ls-files '*.sql' | xargs -I {} npx sql-formatter -l postgresql {}",
     "format:shell": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shfmt --write --simplify'",
-    "format:shell:check": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shfmt --diff'",
+    "format:shell:check": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shfmt --diff --simplify'",
+    "check:hooks": "bash scripts/check-hooks-installed.sh",
+    "worktree:new": "bash scripts/new-worktree.sh",
+    "test:scripts:sh": "bash scripts/run-shell-tests.sh",
+    "test:api": "cd apps/api && npm test",
     "prepare": "husky"
   },
   "lint-staged": {

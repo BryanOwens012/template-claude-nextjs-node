@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+# Post-checkout: switching branches swaps the lockfiles under an unchanged node_modules,
+# producing the same "Cannot find module ..." failure a pull does.
+#
+# Args: $1 previous HEAD, $2 new HEAD, $3 flag: 1 for a branch checkout, 0 for a file
+# checkout (`git checkout -- path`). Only the branch case can move a lockfile.
+[ "${3:-0}" = "1" ] || exit 0
+
+# A rebase's initial checkout onto the upstream tip fires this hook with $3=1, and
+# post-rewrite then covers the same range once the rebase finishes. Without this guard a
+# `git pull --rebase` with local commits installs twice. rebase-merge / rebase-apply exist
+# under the git dir during that checkout and not during an ordinary branch switch.
+g=$(git rev-parse --git-dir) || exit 0
+if [ -d "$g/rebase-merge" ] || [ -d "$g/rebase-apply" ]; then
+	exit 0
+fi
+
+root=$(git rev-parse --show-toplevel) || exit 0
+sh "$root/scripts/install-changed-lockfiles.sh" "${1:-}" "${2:-}" post-checkout
