@@ -380,7 +380,7 @@ To add additional backend services:
    - `Dockerfile` - Build configuration (Node.js 24; copy `apps/shared/` too if the service uses shared types)
    - `package.json` / `package-lock.json` - Node.js dependencies
    - `.env.example` - Environment variable template
-3. Declare the service in `.railway/railway.ts` — same repo source, `build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/worker/Dockerfile' }`, its start command, and its variables — and add it to the project's `resources`
+3. Declare the service in `.railway/railway.ts` with the same repo source, `build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/worker/Dockerfile' }`, its start command, and its variables, then add it to the project's `resources`
 4. `railway config plan`, then `railway config apply`
 5. Deploys independently on every push
 

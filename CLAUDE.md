@@ -584,7 +584,7 @@ The `vercel.json` at the root is simplified:
 
 ### Railway (Backend API)
 
-The Railway environment is declared as Infrastructure as Code in `.railway/railway.ts` and managed with `railway config plan` / `railway config apply`. Config as Code (`railway.json` / `railway.toml`) is deprecated — Railway stops reading it on 2026-12-01 — so never add one back; a service managed by both is refused by `railway config plan`.
+The Railway environment is declared as Infrastructure as Code in `.railway/railway.ts` and managed with `railway config plan` / `railway config apply`. Config as Code (`railway.json` / `railway.toml`) is deprecated and Railway stops reading it on 2026-12-01. Never add one back: a service managed by both is refused by `railway config plan`.
 
 - `.railway/railway.ts` - The whole environment: the `API` service (`build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/api/Dockerfile' }`, `start`, `deploy.restartPolicyType`/`restartPolicyMaxRetries`), `redis('Redis')` wired into `REDIS_URL`, and the `Keep-Alive` function (`fn(...)` with `deploy.cronSchedule`, its script base64-encoded from `apps/cron/src/keep-alive.ts` into the start command). Every secret is `preserve()`; never write a value into this file
 - `.railway/tsconfig.json` + `npm run typecheck:railway` - Typechecks the file against the `railway` SDK. **This is the only check that catches an unknown key**: `railway config plan` forwards a misspelled key to Railway unchanged (verified: `dockerfilePathh` planned as a new setting), so run the typecheck before every plan
@@ -623,7 +623,7 @@ To add additional backend services:
    - `Dockerfile` - Build config (Node.js 24+; copy `apps/shared/` too if the service uses shared types)
    - `package.json` and `package-lock.json` - Dependencies
    - `.env.example` - Environment template
-3. Declare it in `.railway/railway.ts` — same `github(REPO, ...)` source, `build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/worker/Dockerfile' }`, `start`, `networking.privateNetworkEndpoint`, and its variables — and add it to the project's `resources`
+3. Declare it in `.railway/railway.ts` with the same `github(REPO, ...)` source, `build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/worker/Dockerfile' }`, `start`, `networking.privateNetworkEndpoint`, and its variables, then add it to the project's `resources`
 4. `npm run typecheck:railway`, `railway config plan`, then `railway config apply`
 5. Deploys independently on every push
 

@@ -13,11 +13,13 @@ railway config plan          # read-only diff; safe to run any time
 railway config apply         # re-plans, then applies after you confirm
 ```
 
-From an unlinked clone, pass the project and environment explicitly:
+From an unlinked clone, `plan` prompts for the project and environment. The `config` subcommands accept no `-p`/`-e` flags; to run non-interactively (CI, an agent session), pass the ids as environment variables:
 
 ```bash
-railway config plan -p <project-id> -e production
+RAILWAY_PROJECT_ID=<project-id> RAILWAY_ENVIRONMENT_ID=<environment-id> railway config plan </dev/null
 ```
+
+Get the ids from `railway list --json`. Run `railway` directly rather than through a wrapper that `exec`s it: the SDK checks the CLI version via the executable named in `$_`, so a wrapper makes it fail with "requires Railway CLI 5.42.1 or newer".
 
 - `plan` redacts variable values; add `--show-values` to print them.
 - `apply --yes` is non-interactive; destructive changes (deleting a service or variable) additionally require `--confirm-destructive`.
