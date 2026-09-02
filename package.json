@@ -4,7 +4,7 @@
   "description": "Next.js + Node.js template monorepo with tRPC v11 + TanStack Query",
   "private": true,
   "scripts": {
-    "typecheck": "npm run build:api && npm run typecheck:api && npm run typecheck:web && npm run typecheck:railway",
+    "typecheck": "npm run build:api && npm run typecheck:web && npm run typecheck:railway",
     "typecheck:api": "cd apps/api && npx tsc --noEmit",
     "typecheck:web": "cd apps/web && npx tsc --noEmit",
     "typecheck:railway": "tsc --noEmit -p .railway",

@@ -490,11 +490,11 @@ This template includes automated code quality checks powered by **Biome**, **Pre
 **Pre-commit Hook** — Runs automatically before each commit:
 
 ```bash
-npm run typecheck    # build:api → typecheck:api → typecheck:web → typecheck:railway
+npm run typecheck    # build:api → typecheck:web → typecheck:railway
 npx lint-staged      # Auto-format and lint only staged files (safe fixes only)
 ```
 
-If any step fails, the commit is blocked. Fix issues and try again. `typecheck:api` runs plain `tsc --noEmit` over `apps/api`, the same file set the Railway Dockerfile compiles, so the deploy is never the first thing to notice a type error.
+If any step fails, the commit is blocked. Fix issues and try again. `build:api` compiles `apps/api` with the same tsconfig the Railway Dockerfile uses (tests included), so the deploy is never the first thing to notice a type error.
 
 **Lockfile-sync hooks** — Whenever a git operation changes a `package-lock.json` under an unchanged `node_modules`, the matching workspace is reinstalled automatically (`npm install`, once per changed lockfile). All four hooks call one shared script, `scripts/install-changed-lockfiles.sh`, and differ only in the rev range they pass:
 

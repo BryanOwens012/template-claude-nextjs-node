@@ -3,12 +3,12 @@
 #
 # `npm run typecheck` is the single definition of "what must compile", shared with the
 # gauntlet (.claude/gauntlet.json) so this hook cannot check less than the gate does. It runs:
-#   1. build:api          emits the declarations apps/web resolves `@api/*` against
-#   2. typecheck:api      plain `tsc --noEmit` over apps/api: the same file set the deploy's
-#                         `npm run build` compiles (tests included), so a test fixture that
-#                         drifted from its type fails here rather than in the deploy
-#   3. typecheck:web      the Next.js app against those declarations
-#   4. typecheck:railway  .railway/railway.ts against the railway SDK types
+#   1. build:api          `tsc` over apps/api with the same tsconfig the Railway Dockerfile
+#                         uses (tests included), so a type error fails here rather than in
+#                         the deploy; it also emits the declarations apps/web resolves
+#                         `@api/*` against
+#   2. typecheck:web      the Next.js app against those declarations
+#   3. typecheck:railway  .railway/railway.ts against the railway SDK types
 # then lint-staged runs safe formatters/linters on staged files and re-stages them.
 #
 # Never add an --unsafe autofix flag here. Fix Biome's unsafe findings by hand in the source.
