@@ -203,8 +203,7 @@ apps/web/
 │   ├── utils/admin.ts   # Admin email domain check
 │   └── trpc.ts          # tRPC client context (useTRPC hook)
 ├── public/sso/          # OAuth provider logos (Google, Microsoft SVGs)
-├── proxy.ts             # Next.js 16 middleware (route protection)
-└── types/               # TypeScript type definitions
+└── proxy.ts             # Next.js 16 middleware (route protection)
 ```
 
 **Backend:**
@@ -239,12 +238,13 @@ apps/api/
 │   │   └── telemetry.ts         # OpenTelemetry SDK with LangfuseSpanProcessor
 │   └── types/
 │       └── index.ts             # Zod schemas + z.infer<> types (input + output)
-├── supabase/
-│   ├── types.ts                 # Regenerate with supabase CLI
-│   └── migrations/
-│       └── .gitkeep
 ├── Dockerfile           # Docker build (node:24-alpine, used by Railway)
 └── .env.example         # Environment variable template
+
+apps/shared/
+└── supabase/            # Compiled into apps/api (tsconfig rootDir: "..") and resolved by apps/web as @shared/*
+    ├── types.ts         # Generated; regenerate with scripts/gen-supabase-types.sh
+    └── migrations/      # .up.sql/.down.sql pairs, run by hand in the Supabase SQL Editor
 ```
 
 **Root:**
@@ -253,7 +253,6 @@ apps/api/
 vercel.json            # Vercel deployment config for web app (simplified)
 .railway/railway.ts    # Railway Infrastructure as Code: API (Dockerfile → apps/api/Dockerfile), Redis, Keep-Alive
 .railway/tsconfig.json # Typechecks railway.ts against the `railway` SDK (npm run typecheck:railway)
-.vercelignore          # Vercel ignore patterns (build only apps/web/)
 .claude/gauntlet.json  # Declared pre-merge quality gate, cheapest check first (check:hooks)
 .husky/                # pre-commit, plus post-merge/post-rewrite/post-checkout/post-commit lockfile sync
 scripts/
@@ -848,10 +847,10 @@ The corresponding `.down.sql` must `REVOKE`/`DROP POLICY` (in reverse order) as 
 
 ### Supabase Types
 
-Generate TypeScript types from your Supabase schema:
+Generate TypeScript types from your Supabase schema through the committed wrapper, never the bare generator. It reads the project id from `SUPABASE_URL` in `apps/api/.env` and writes `apps/shared/supabase/types.ts`:
 
 ```bash
-npx supabase gen types typescript --project-id YOUR_PROJECT_ID > apps/shared/supabase/types.ts
+bash scripts/gen-supabase-types.sh
 ```
 
 After regenerating, update pgvector fields manually (e.g., embedding fields to `number[] | null`).
