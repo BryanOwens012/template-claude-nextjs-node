@@ -58,12 +58,16 @@
   },
   "overrides": [
     {
+      "includes": ["**/supabase/types.ts", "**/*.generated.{js,ts,tsx}"],
+      "linter": { "enabled": false },
+      "formatter": { "enabled": false }
+    },
+    {
       "includes": [
         "**/*.test.{js,ts,tsx}",
         "**/*.d.{js,ts,tsx}",
         "**/test-*.{js,ts,tsx}",
-        "**/*-test.{js,ts,tsx}",
-        "apps/shared/supabase/types.ts"
+        "**/*-test.{js,ts,tsx}"
       ],
       "linter": {
         "rules": {

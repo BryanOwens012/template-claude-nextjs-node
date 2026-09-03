@@ -626,10 +626,11 @@ Content sources are auto-detected (no `content` array needed). To scan additiona
 
 Migrations live in `apps/shared/supabase/migrations/` as `.up.sql`/`.down.sql` pairs and are **documentation only** — they are never executed programmatically. Run them manually in the Supabase web UI (SQL Editor). Each `.up.sql` must be idempotent, start with fail-early guards, and include explicit `GRANT` + RLS statements; each `.down.sql` rolls back in reverse order. See CLAUDE.md ("SQL Migrations") for the full rules.
 
-After schema changes, regenerate the TypeScript types through the committed wrapper, which reads the project id from `apps/api/.env` and writes `apps/shared/supabase/types.ts`:
+After schema changes, regenerate the TypeScript types through the committed wrapper. It reads the project id from `apps/api/.env` (or targets a running local stack with `--local`), generates to a temp file, and moves it over `apps/shared/supabase/types.ts` only when the output is a real types module, so a failed run never truncates the committed file:
 
 ```bash
-bash scripts/gen-supabase-types.sh
+bash scripts/gen-supabase-types.sh            # project in apps/api/.env
+bash scripts/gen-supabase-types.sh --local    # local Supabase stack
 ```
 
 ## Troubleshooting
