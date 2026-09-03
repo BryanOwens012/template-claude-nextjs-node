@@ -12,9 +12,9 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.116",
     "@langfuse/otel": "^5.11.0",
     "@langfuse/tracing": "^5.11.0",
+    "@openrouter/ai-sdk-provider": "^2.10.0",
     "@opentelemetry/sdk-node": "^0.222.0",
     "@supabase/supabase-js": "^2.114.0",
     "@trpc/server": "^11.18.0",
