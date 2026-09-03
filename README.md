@@ -38,7 +38,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 - **API Layer**: tRPC v11 (type-safe procedures) + Zod (schemas + inferred types)
 - **Database**: Supabase (PostgreSQL with auth, realtime, storage)
 - **Caching**: Redis (ioredis with Railway-optimized settings)
-- **AI**: Vercel AI SDK (`ai`) — `generateText`, `streamText`, tool calls. LLM calls route through OpenRouter by default (Vercel AI Gateway is the alternative); the shipped scaffold calls Anthropic directly via `@ai-sdk/anthropic` so the template runs on one key, and is the one call site to swap when adapting the template (see CLAUDE.md → "Routing")
+- **AI**: Vercel AI SDK (`ai`) — `generateText`, `streamText`, tool calls. LLM calls route through OpenRouter by default (Vercel AI Gateway is the alternative); the shipped example uses `@ai-sdk/anthropic` directly so the template runs on a single key
 - **Observability**: Langfuse (optional: tracing, sessions; prompts live in the codebase at `apps/api/src/prompts/`)
 - **Deployment**: Railway (API + Redis plugin)
 
@@ -558,13 +558,6 @@ The pre-commit hook ensures high code quality by catching issues early before th
 - Define Zod schemas for request/response shapes; infer types with `z.infer<>`
 - Define tRPC procedures using `publicProcedure.input(Schema).query(...)` or `.mutation(...)`
 - Use `TRPCError` for procedure errors (not `http-errors`)
-
-#### Shell scripts (`scripts/`, `.husky/`)
-
-- Every recursive or forced delete (`rm -rf`, `find … -delete`, `git clean -fdx`, `fs.rm` with `recursive`) is guarded: `set -u` plus `${VAR:?}` so an empty variable cannot widen the target, a check that the path sits under the expected parent, and a marker check that it looks like what you meant to delete. Tests delete only inside their own `mktemp -d` sandbox. If a guard cannot be verified, abort rather than delete.
-- Put `--` before every path operand that is not a literal (`rm -- "$f"`, `mv -- "$src" "$dst"`), so a name beginning with `-` cannot be parsed as a flag; use `printf '%s\n' "$var"` rather than `echo "$var"`.
-- Remove worktrees with `git worktree remove`, never `rm -rf`; reclaim build output with `bash ~/.claude/build-output.sh clean`.
-- Full rules and rationale: CLAUDE.md → "Destructive Deletion Commands" and "Shell Option-Injection Guards".
 
 ### Testing
 
