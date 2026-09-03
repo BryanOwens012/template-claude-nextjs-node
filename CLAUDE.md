@@ -570,7 +570,7 @@ curl -X POST http://localhost:8000/trpc/llm.traceExample \
 #   { text, usage, toolCalls: [{ tool, input, output }], sessionId, posthogTraced, model }
 ```
 
-`src/trpc/routers/llm.test.ts` runs the same procedure against one local stand-in that plays both OpenRouter and PostHog (no keys, no network) and asserts the wire shape (model id, top-level `cache_control`, `session_id`, `usage.include`, tools, bearer key), the cached-token and cost mapping, a tool round trip, and the `$ai_generation` event PostHog receives (trace id, split token counts, redacted text). Copy that pattern when adding an LLM call: the request body and the captured event are the parts no typecheck can see.
+`src/trpc/routers/llm.test.ts` runs the same procedure against one local stand-in that plays both OpenRouter and PostHog (no keys, no network) and asserts the wire shape (model id, top-level `cache_control`, `session_id`, `usage.include`, tools, bearer key), the cached-token and cost mapping, a tool round trip, and the `$ai_generation` event PostHog receives (trace id, split token counts, redacted text). `llm.no-posthog.test.ts` and `llm.unconfigured.test.ts` cover the degraded configurations in their own processes, since the env singleton is read once per process: no PostHog key runs the model unwrapped with `posthogTraced: false`, and no OpenRouter key fails closed with `PRECONDITION_FAILED` while `getPrompt` keeps working. Copy that pattern when adding an LLM call: the request body and the captured event are the parts no typecheck can see.
 
 ## Common Pitfalls to Avoid
 
