@@ -9,3 +9,5 @@ const t = initTRPC.context<Context>().create();
 export const createRouter = t.router;
 export const publicProcedure = t.procedure;
 export const middleware = t.middleware;
+// Server-side caller for tests: invokes procedures directly, no HTTP.
+export const createCallerFactory = t.createCallerFactory;

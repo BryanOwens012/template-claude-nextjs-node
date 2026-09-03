@@ -596,6 +596,8 @@ curl -X POST http://localhost:8000/trpc/langfuse.traceExample \
 #   { text, usage, toolCalls: [{ tool, input, output }], sessionId, langfuseTraced }
 ```
 
+`src/trpc/routers/langfuse.test.ts` runs the same procedure against a local stand-in for OpenRouter (no key, no network) and asserts the wire shape (model id, top-level `cache_control`, `session_id`, `usage.include`, tools, bearer key), the cached-token and cost mapping, and a tool round trip. Copy that pattern when adding an LLM call: the request body is the part no typecheck can see.
+
 All Langfuse features are **optional** and gracefully degrade if not configured.
 
 ## Common Pitfalls to Avoid
