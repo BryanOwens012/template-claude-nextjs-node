@@ -1,4 +1,5 @@
-import { isLangfuseAvailable } from '@/services/langfuse.js';
+import { getEnvironment } from '@/config/environment.js';
+import { getPostHog } from '@/services/posthog.js';
 import { getRedisClient } from '@/services/redis.js';
 import { getSupabaseClient } from '@/services/supabase.js';
 import { createRouter, publicProcedure } from '@/trpc/init.js';
@@ -8,7 +9,6 @@ export const healthRouter = createRouter({
   check: publicProcedure.output(HealthResponseSchema).query(async () => {
     let redisStatus = 'unavailable';
     let supabaseStatus = 'unavailable';
-    let langfuseStatus = 'unconfigured';
 
     // Redis check
     const redis = getRedisClient();
@@ -33,8 +33,10 @@ export const healthRouter = createRouter({
       }
     }
 
-    // Langfuse check
-    langfuseStatus = isLangfuseAvailable() ? 'connected' : 'unconfigured';
+    // PostHog and OpenRouter: configuration only. A health probe must not send events or
+    // spend against the key, so neither makes a request; llm.traceExample is the live check.
+    const posthogStatus = getPostHog() ? 'configured' : 'unconfigured';
+    const openrouterStatus = getEnvironment().OPENROUTER_API_KEY ? 'configured' : 'unconfigured';
 
     const connected: string[] = [];
     if (redisStatus === 'connected') {
@@ -43,9 +45,6 @@ export const healthRouter = createRouter({
     if (supabaseStatus === 'connected') {
       connected.push('Supabase');
     }
-    if (langfuseStatus === 'connected') {
-      connected.push('Langfuse');
-    }
 
     const isHealthy = redisStatus === 'connected' || supabaseStatus === 'connected';
 
@@ -53,7 +52,8 @@ export const healthRouter = createRouter({
       status: isHealthy ? ('healthy' as const) : ('degraded' as const),
       redis: redisStatus,
       supabase: supabaseStatus,
-      langfuse: langfuseStatus,
+      posthog: posthogStatus,
+      openrouter: openrouterStatus,
       message:
         connected.length > 0
           ? `API is running with ${connected.join(', ')}`

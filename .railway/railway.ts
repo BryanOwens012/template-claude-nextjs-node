@@ -58,9 +58,12 @@ export default defineRailway(() => {
       SUPABASE_URL: preserve(),
       SUPABASE_SECRET_KEY: preserve(),
       CORS_ORIGINS: preserve(),
-      LANGFUSE_BASE_URL: preserve(),
-      LANGFUSE_PUBLIC_KEY: preserve(),
-      LANGFUSE_SECRET_KEY: preserve(),
+      // Every LLM call routes through OpenRouter (CLAUDE.md -> "Routing"). Declared so an
+      // `apply` keeps the dashboard value; an undeclared variable is deleted on apply.
+      OPENROUTER_API_KEY: preserve(),
+      // Server-side analytics and LLM analytics (CLAUDE.md -> "LLM Observability").
+      POSTHOG_API_KEY: preserve(),
+      POSTHOG_HOST: preserve(),
     },
   });
 
