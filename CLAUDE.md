@@ -847,13 +847,14 @@ The corresponding `.down.sql` must `REVOKE`/`DROP POLICY` (in reverse order) as 
 
 ### Supabase Types
 
-Generate TypeScript types from your Supabase schema through the committed wrapper, never the bare generator. It reads the project id from `SUPABASE_URL` in `apps/api/.env` and writes `apps/shared/supabase/types.ts`:
+Generate TypeScript types from your Supabase schema through the committed wrapper, never the bare generator. A bare `npx supabase gen types … > types.ts` truncates the committed file before the generator runs, so a failed login or a wrong project id leaves it empty; the wrapper generates to a temp file, refuses output that is not a types module, and only then moves it into place. It reads the project id from `SUPABASE_URL` in `apps/api/.env` and writes `apps/shared/supabase/types.ts`; `--local` generates from a running local Supabase stack instead:
 
 ```bash
-bash scripts/gen-supabase-types.sh
+bash scripts/gen-supabase-types.sh            # project in apps/api/.env
+bash scripts/gen-supabase-types.sh --local    # local Supabase stack
 ```
 
-After regenerating, update pgvector fields manually (e.g., embedding fields to `number[] | null`).
+`types.ts` is generated only and exempt from Biome (the `**/supabase/types.ts` override), so the stored form is the generator's own output and a regeneration diff contains only schema changes. Read every removed line of that diff; it is the only place a drifted schema is visible. Never hand-edit the file: the next regeneration discards the edit. Where the generated type is too loose (a pgvector column comes out as `string | null` and the app wants `number[]`), narrow it in hand-written code that imports from `types.ts`.
 
 The generated `Database` type is used in `src/services/supabase.ts` for full type safety:
 
