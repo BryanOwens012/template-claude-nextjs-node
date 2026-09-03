@@ -62,7 +62,7 @@ else
 	npx supabase gen types typescript --local >"$TMP"
 fi
 
-# Sniff the content, not just the size: a generator that exits 0 having printed an error
+# Check the content as well as the size: a generator that exits 0 having printed an error
 # page or an empty schema passes a bare -s check.
 if [[ ! -s $TMP ]] || ! grep -q '^export type Database' "$TMP"; then
 	echo "Error: generator output is empty or not a types module — $OUT left unchanged" >&2
