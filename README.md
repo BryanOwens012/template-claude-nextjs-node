@@ -132,7 +132,6 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 ├── biome.json                # JS/TS formatting and linting rules
 ├── vercel.json               # Vercel deployment config
 ├── .railway/                 # Railway Infrastructure as Code (railway.ts declares API, Redis, Keep-Alive)
-├── .vercelignore             # Vercel ignore patterns
 ├── .gitignore                # Comprehensive ignore patterns
 └── README.md                 # This file
 ```
@@ -627,10 +626,10 @@ Content sources are auto-detected (no `content` array needed). To scan additiona
 
 Migrations live in `apps/shared/supabase/migrations/` as `.up.sql`/`.down.sql` pairs and are **documentation only** — they are never executed programmatically. Run them manually in the Supabase web UI (SQL Editor). Each `.up.sql` must be idempotent, start with fail-early guards, and include explicit `GRANT` + RLS statements; each `.down.sql` rolls back in reverse order. See CLAUDE.md ("SQL Migrations") for the full rules.
 
-After schema changes, regenerate the TypeScript types:
+After schema changes, regenerate the TypeScript types through the committed wrapper, which reads the project id from `apps/api/.env` and writes `apps/shared/supabase/types.ts`:
 
 ```bash
-npx supabase gen types typescript --project-id YOUR_ID > apps/shared/supabase/types.ts
+bash scripts/gen-supabase-types.sh
 ```
 
 ## Troubleshooting
