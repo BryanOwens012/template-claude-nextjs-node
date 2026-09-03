@@ -10,7 +10,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 - **End-to-End Type Safety**: tRPC v11 + TanStack Query v5 for type-safe API calls with automatic caching
 - **Supabase Integration**: PostgreSQL database with built-in auth, realtime, and storage
 - **Redis Integration**: Built-in caching with Railway-optimized connection settings
-- **Vercel AI SDK**: First-class LLM integration with Claude Haiku, streaming, and tool calls
+- **Vercel AI SDK**: First-class LLM integration with streaming and tool calls, routed through OpenRouter by default (Claude Haiku in the shipped scaffold)
 - **Langfuse Integration**: Optional LLM observability for tracing and sessions (prompts live in the codebase, not Langfuse)
 - **PostHog Analytics**: Optional web analytics and product analytics with managed reverse proxy support
 - **Deployment Ready**: Pre-configured for Vercel (frontend) and Railway (backend + Redis)
@@ -38,7 +38,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 - **API Layer**: tRPC v11 (type-safe procedures) + Zod (schemas + inferred types)
 - **Database**: Supabase (PostgreSQL with auth, realtime, storage)
 - **Caching**: Redis (ioredis with Railway-optimized settings)
-- **AI**: Vercel AI SDK (`ai` + `@ai-sdk/anthropic`) — `generateText`, `streamText`, tool calls
+- **AI**: Vercel AI SDK (`ai`) — `generateText`, `streamText`, tool calls. LLM calls route through OpenRouter by default (Vercel AI Gateway is the alternative); the shipped scaffold calls Anthropic directly via `@ai-sdk/anthropic` so the template runs on one key, and is the one call site to swap when adapting the template (see CLAUDE.md → "Routing")
 - **Observability**: Langfuse (optional: tracing, sessions; prompts live in the codebase at `apps/api/src/prompts/`)
 - **Deployment**: Railway (API + Redis plugin)
 
@@ -558,6 +558,13 @@ The pre-commit hook ensures high code quality by catching issues early before th
 - Define Zod schemas for request/response shapes; infer types with `z.infer<>`
 - Define tRPC procedures using `publicProcedure.input(Schema).query(...)` or `.mutation(...)`
 - Use `TRPCError` for procedure errors (not `http-errors`)
+
+#### Shell scripts (`scripts/`, `.husky/`)
+
+- Every recursive or forced delete (`rm -rf`, `find … -delete`, `git clean -fdx`, `fs.rm` with `recursive`) is guarded: `set -u` plus `${VAR:?}` so an empty variable cannot widen the target, a check that the path sits under the expected parent, and a marker check that it looks like what you meant to delete. Tests delete only inside their own `mktemp -d` sandbox. If a guard cannot be verified, abort rather than delete.
+- Put `--` before every path operand that is not a literal (`rm -- "$f"`, `mv -- "$src" "$dst"`), so a name beginning with `-` cannot be parsed as a flag; use `printf '%s\n' "$var"` rather than `echo "$var"`.
+- Remove worktrees with `git worktree remove`, never `rm -rf`; reclaim build output with `bash ~/.claude/build-output.sh clean`.
+- Full rules and rationale: CLAUDE.md → "Destructive Deletion Commands" and "Shell Option-Injection Guards".
 
 ### Testing
 
