@@ -13,7 +13,9 @@ const EnvironmentSchema = z.object({
   LANGFUSE_PUBLIC_KEY: z.string().optional(),
   LANGFUSE_SECRET_KEY: z.string().optional(),
   LANGFUSE_BASE_URL: z.url().optional(),
-  ANTHROPIC_API_KEY: z.string().optional(),
+  OPENROUTER_API_KEY: z.string().optional(),
+  // Override only to point the api at a proxy or a local stand-in; unset means openrouter.ai.
+  OPENROUTER_BASE_URL: z.url().optional(),
   POSTHOG_API_KEY: z.string().optional(),
   POSTHOG_HOST: z.string().optional(),
   ADMIN_EMAIL_DOMAIN: z.string().optional(),

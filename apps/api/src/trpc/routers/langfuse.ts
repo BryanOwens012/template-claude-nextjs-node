@@ -1,5 +1,5 @@
-import { createAnthropic } from '@ai-sdk/anthropic';
 import { propagateAttributes, startActiveObservation } from '@langfuse/tracing';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { TRPCError } from '@trpc/server';
 import { generateText, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
@@ -8,6 +8,10 @@ import { getPrompt } from '@/prompts/index.js';
 import { getLangfuse, isLangfuseAvailable } from '@/services/langfuse.js';
 import { createRouter, publicProcedure } from '@/trpc/init.js';
 import { PromptInputSchema, PromptResponseSchema, TraceExampleInputSchema } from '@/types/index.js';
+
+// Every LLM call goes through OpenRouter (see CLAUDE.md -> "Routing"), so a model is an
+// OpenRouter catalog id, pinned per call site. Swapping vendors is a string change here.
+const TRACE_EXAMPLE_MODEL = 'anthropic/claude-haiku-4.5';
 
 // Mock tool — returns hardcoded data so the scaffold runs without external APIs.
 // Replace the execute function with a real API call in your project.
@@ -19,16 +23,10 @@ const getCurrentWeather = tool({
   execute: async ({ city }) => ({
     city,
     temperature: 68,
-    unit: '\u00b0F',
+    unit: '°F',
     condition: 'Partly cloudy',
     humidity: '62%',
   }),
-  // Prompt-caching breakpoint on the LAST tool: tools render first in the prompt,
-  // so one breakpoint here covers every preceding tool definition. It only engages
-  // once the prefix exceeds the model's minimum cacheable size (~4096 tokens on
-  // Haiku 4.5) — kept in this scaffold as the pattern to copy for real prompts.
-  // Verify hits via result.providerMetadata?.anthropic (not result.usage).
-  providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
 });
 
 export const langfuseRouter = createRouter({
@@ -71,19 +69,32 @@ export const langfuseRouter = createRouter({
   traceExample: publicProcedure.input(TraceExampleInputSchema).mutation(async ({ input }) => {
     const env = getEnvironment();
 
-    if (!env.ANTHROPIC_API_KEY) {
+    if (!env.OPENROUTER_API_KEY) {
       throw new TRPCError({
         code: 'PRECONDITION_FAILED',
-        message: 'ANTHROPIC_API_KEY is not configured',
+        message: 'OPENROUTER_API_KEY is not configured',
       });
     }
 
     const { prompt, sessionId } = input;
-    const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
     // All LLM calls are grouped into a Langfuse session (see CLAUDE.md). When the
     // client omits sessionId (or sends ''), generate one so no call is session-less.
     const effectiveSessionId = sessionId || `anon-${crypto.randomUUID()}`;
     const traceAttrs = { sessionId: effectiveSessionId };
+
+    const openrouter = createOpenRouter({
+      apiKey: env.OPENROUTER_API_KEY,
+      ...(env.OPENROUTER_BASE_URL ? { baseURL: env.OPENROUTER_BASE_URL } : {}),
+    });
+    const model = openrouter(TRACE_EXAMPLE_MODEL, {
+      // Real token counts and cost come back on providerMetadata.openrouter.usage;
+      // OpenRouter has no count_tokens endpoint, so this is the measurement.
+      usage: { include: true },
+      // The same session id pins OpenRouter's sticky routing, so every turn of a
+      // conversation lands on the upstream that holds its prompt cache. Without it the
+      // key is derived from a message hash and lapses after 10 minutes of inactivity.
+      extraBody: { session_id: effectiveSessionId },
+    });
 
     try {
       let generatedText = '';
@@ -95,11 +106,18 @@ export const langfuseRouter = createRouter({
 
         await propagateAttributes(traceAttrs, async () => {
           const result = await generateText({
-            model: anthropic('claude-haiku-4-5'),
+            model,
             prompt,
             tools: { getCurrentWeather },
             // stopWhen allows multi-step: model calls tool -> receives result -> generates final text
             stopWhen: stepCountIs(3),
+            // Prompt caching through OpenRouter: a request-level cacheControl becomes the
+            // top-level `cache_control`, and OpenRouter places the breakpoint on the last
+            // cacheable block and advances it as the conversation grows. It only engages once
+            // the prefix exceeds the model's minimum cacheable size (~4096 tokens on Haiku
+            // 4.5); kept in the scaffold as the pattern to copy for real prompts. Cached
+            // tokens report as usage.cachedInputTokens, never Anthropic's field names.
+            providerOptions: { openrouter: { cacheControl: { type: 'ephemeral' } } },
             experimental_telemetry: {
               isEnabled: true,
               functionId: 'trace-example-generateText',
@@ -112,6 +130,8 @@ export const langfuseRouter = createRouter({
             inputTokens: result.usage.inputTokens,
             outputTokens: result.usage.outputTokens,
             totalTokens: result.usage.totalTokens,
+            cachedInputTokens: result.usage.cachedInputTokens,
+            openrouter: result.providerMetadata?.openrouter?.usage,
           };
 
           // Collect tool calls made across all steps
@@ -135,7 +155,7 @@ export const langfuseRouter = createRouter({
         toolCalls: toolCallsMade,
         sessionId: effectiveSessionId,
         langfuseTraced: isLangfuseAvailable(),
-        model: 'claude-haiku-4-5',
+        model: TRACE_EXAMPLE_MODEL,
       };
     } catch (error) {
       if (error instanceof TRPCError) {
