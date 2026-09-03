@@ -1,5 +1,5 @@
-// LLM prompts live here, in the codebase, as the single source of truth — not in
-// Langfuse (see CLAUDE.md: "Langfuse (Tracing Yes, Prompts No)"). This keeps prompts
+// LLM prompts live here, in the codebase, as the single source of truth — never in a
+// hosted prompt registry (see CLAUDE.md: "LLM Observability"). This keeps prompts
 // version-controlled alongside the code that uses them and lets terminal agents like
 // Claude Code read them as context. Add new prompts to the registry below.
 

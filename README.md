@@ -11,7 +11,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 - **Supabase Integration**: PostgreSQL database with built-in auth, realtime, and storage
 - **Redis Integration**: Built-in caching with Railway-optimized connection settings
 - **Vercel AI SDK via OpenRouter**: First-class LLM integration with streaming and tool calls; one key for every model in OpenRouter's catalog (Claude Haiku 4.5 in the shipped scaffold)
-- **Langfuse Integration**: Optional LLM observability for tracing and sessions (prompts live in the codebase, not Langfuse)
+- **LLM Analytics**: PostHog LLM analytics traces every model call (tokens, cost, latency, tool calls) and OpenRouter's activity page holds the per-request record; prompts live in the codebase
 - **PostHog Analytics**: Optional web analytics and product analytics with managed reverse proxy support
 - **Deployment Ready**: Pre-configured for Vercel (frontend) and Railway (backend + Redis)
 - **Monorepo Structure**: Organized multi-service architecture
@@ -39,7 +39,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 - **Database**: Supabase (PostgreSQL with auth, realtime, storage)
 - **Caching**: Redis (ioredis with Railway-optimized settings)
 - **AI**: Vercel AI SDK (`ai`) with the OpenRouter provider (`@openrouter/ai-sdk-provider`) — `generateText`, `streamText`, tool calls. One `OPENROUTER_API_KEY` reaches every model in OpenRouter's catalog; no vendor SDK is installed
-- **Observability**: Langfuse (optional: tracing, sessions; prompts live in the codebase at `apps/api/src/prompts/`)
+- **Observability**: PostHog (product analytics and LLM analytics, optional); prompts live in the codebase at `apps/api/src/prompts/`
 - **Deployment**: Railway (API + Redis plugin)
 
 ### Why tRPC (not REST)?
@@ -101,7 +101,7 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 │   │   │   │   ├── middleware.ts      # Auth middleware (authenticatedProcedure, etc.)
 │   │   │   │   ├── router.ts         # Root router, exports AppRouter type
 │   │   │   │   └── routers/          # Sub-routers (health, redis, etc.)
-│   │   │   ├── services/             # Redis, Supabase, Langfuse, telemetry clients
+│   │   │   ├── services/             # Redis, Supabase, PostHog clients
 │   │   │   └── types/                # Zod schemas & types
 │   │   ├── package.json
 │   │   ├── tsconfig.json
@@ -230,12 +230,13 @@ If PostHog is not configured, all analytics calls silently no-op — no errors, 
 
 #### PostHog Environment Variables
 
-| Variable                   | Location              | Description                                            |
-| -------------------------- | --------------------- | ------------------------------------------------------ |
-| `NEXT_PUBLIC_POSTHOG_KEY`  | `apps/web/.env.local` | PostHog project API key (public)                       |
-| `NEXT_PUBLIC_POSTHOG_HOST` | `apps/web/.env.local` | PostHog API host or reverse proxy URL                  |
-| `POSTHOG_API_KEY`          | `apps/api/.env`       | Same project API key (for server-side events)          |
-| `POSTHOG_HOST`             | `apps/api/.env`       | PostHog API host (default: `https://us.i.posthog.com`) |
+| Variable                   | Location              | Description                                                            |
+| -------------------------- | --------------------- | ---------------------------------------------------------------------- |
+| `NEXT_PUBLIC_POSTHOG_KEY`  | `apps/web/.env.local` | PostHog project API key (public)                                       |
+| `NEXT_PUBLIC_POSTHOG_HOST` | `apps/web/.env.local` | PostHog API host or reverse proxy URL                                  |
+| `POSTHOG_API_KEY`          | `apps/api/.env`       | Same project API key (for server-side events)                          |
+| `POSTHOG_HOST`             | `apps/api/.env`       | PostHog API host (default: `https://us.i.posthog.com`)                 |
+| `POSTHOG_LLM_PRIVACY_MODE` | `apps/api/.env`       | `true` (default) keeps prompt and completion text out of LLM analytics |
 
 #### Built-in Events
 
@@ -584,8 +585,7 @@ The Express backend provides the following endpoints (the `/trpc/*` endpoints re
 - Health check: `http://localhost:8000/trpc/health.check` (detailed service status via tRPC)
 - Redis test: `http://localhost:8000/trpc/redis.test`
 - Supabase test: `http://localhost:8000/trpc/supabase.test`
-- Langfuse test: `http://localhost:8000/trpc/langfuse.test`
-- Prompt rendering: `http://localhost:8000/trpc/langfuse.getPrompt` (codebase prompts from `apps/api/src/prompts/`)
+- Prompt rendering: `http://localhost:8000/trpc/llm.getPrompt` (codebase prompts from `apps/api/src/prompts/`)
 - API info: `http://localhost:8000/trpc/info.get`
 
 ## Common Tasks

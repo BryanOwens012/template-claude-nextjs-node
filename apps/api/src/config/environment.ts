@@ -10,14 +10,17 @@ const EnvironmentSchema = z.object({
   SUPABASE_SECRET_KEY: z.string().min(1),
   REDIS_URL: z.url().default('redis://localhost:6379'),
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
-  LANGFUSE_PUBLIC_KEY: z.string().optional(),
-  LANGFUSE_SECRET_KEY: z.string().optional(),
-  LANGFUSE_BASE_URL: z.url().optional(),
   OPENROUTER_API_KEY: z.string().optional(),
   // Override only to point the api at a proxy or a local stand-in; unset means openrouter.ai.
   OPENROUTER_BASE_URL: z.url().optional(),
   POSTHOG_API_KEY: z.string().optional(),
   POSTHOG_HOST: z.string().optional(),
+  // One project-wide switch for LLM analytics redaction (never per call site). Default on:
+  // PostHog keeps model, tokens, cost, and latency but not prompt or completion text.
+  POSTHOG_LLM_PRIVACY_MODE: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
   ADMIN_EMAIL_DOMAIN: z.string().optional(),
   INTERNAL_API_KEY: z.string().optional(),
   BYPASS_AUTH: z.string().optional().default('false'),

@@ -4,7 +4,9 @@ export const HealthResponseSchema = z.object({
   status: z.enum(['healthy', 'degraded']),
   redis: z.string(),
   supabase: z.string(),
-  langfuse: z.string().optional(),
+  // 'configured' | 'unconfigured': whether the key is set. Neither makes a request.
+  posthog: z.string(),
+  openrouter: z.string(),
   message: z.string(),
   timestamp: z.iso.datetime(),
 });

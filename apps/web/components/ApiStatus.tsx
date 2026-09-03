@@ -7,21 +7,30 @@ const ApiStatus = () => {
   const trpc = useTRPC();
   const { data: health, isLoading: loading, error } = useQuery(trpc.health.check.queryOptions());
 
+  // 'unconfigured' is an optional service the operator has not set up, not a failure, so it
+  // reads as a warning like 'unavailable' rather than as an error.
+  const isOk = (status: string) =>
+    status === 'connected' ||
+    status === 'healthy' ||
+    status === 'initialized' ||
+    status === 'configured';
+  const isWarning = (status: string) => status === 'unavailable' || status === 'unconfigured';
+
   const getStatusColor = (status: string) => {
-    if (status === 'connected' || status === 'healthy' || status === 'initialized') {
+    if (isOk(status)) {
       return 'text-green-600 dark:text-green-400';
     }
-    if (status === 'unavailable') {
+    if (isWarning(status)) {
       return 'text-yellow-600 dark:text-yellow-400';
     }
     return 'text-red-600 dark:text-red-400';
   };
 
   const getStatusIcon = (status: string) => {
-    if (status === 'connected' || status === 'healthy' || status === 'initialized') {
+    if (isOk(status)) {
       return '✓';
     }
-    if (status === 'unavailable') {
+    if (isWarning(status)) {
       return '⚠';
     }
     return '✗';
@@ -79,14 +88,19 @@ const ApiStatus = () => {
             </span>
           </div>
 
-          {health.langfuse && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600 dark:text-gray-400">Langfuse:</span>
-              <span className={`font-medium ${getStatusColor(health.langfuse)}`}>
-                {getStatusIcon(health.langfuse)} {health.langfuse}
-              </span>
-            </div>
-          )}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-600 dark:text-gray-400">PostHog:</span>
+            <span className={`font-medium ${getStatusColor(health.posthog)}`}>
+              {getStatusIcon(health.posthog)} {health.posthog}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-600 dark:text-gray-400">OpenRouter:</span>
+            <span className={`font-medium ${getStatusColor(health.openrouter)}`}>
+              {getStatusIcon(health.openrouter)} {health.openrouter}
+            </span>
+          </div>
 
           <p className="text-xs text-gray-500 dark:text-gray-500 mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
             {health.message}

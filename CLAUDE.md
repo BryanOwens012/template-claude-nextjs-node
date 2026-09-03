@@ -1,6 +1,6 @@
 # Claude Code Instructions
 
-As a reference, this file is organized as follows: **Project Overview** → what this template is and its tech stack; **Development Guidelines** → how to behave and work (respond in words first; be liberal with tools/MCPs), code quality, TS/React/Express style, dependency management, code organization, testing, security posture, destructive-deletion and shell option-injection guards, performance & prefetching, and git workflow; **LLM Model Selection** + **LLM Calls** → model/reasoning-choice doctrine, routing through OpenRouter (Vercel AI Gateway as the alternative), prompt caching + cache pre-warming, and Langfuse tracing/prompt policy + integration patterns; **Common Pitfalls** → frequent mistakes to avoid; **Deployment** → Vercel (web) and Railway (api); **Project-Specific Patterns** → env vars, tRPC integration, CORS, SQL migrations, Supabase types/keys; **Verification Checklist** → pre-completion gates; **Agent Session Logging** + **Agent Collaboration** → multi-agent etiquette; **Template Customization** → how to adapt this template to a new project.
+As a reference, this file is organized as follows: **Project Overview** → what this template is and its tech stack; **Development Guidelines** → how to behave and work (respond in words first; be liberal with tools/MCPs), code quality, TS/React/Express style, dependency management, code organization, testing, security posture, destructive-deletion and shell option-injection guards, performance & prefetching, and git workflow; **LLM Model Selection** + **LLM Calls** → model/reasoning-choice doctrine, routing through OpenRouter (Vercel AI Gateway as the alternative), prompt caching + cache pre-warming, and LLM observability (PostHog LLM analytics, OpenRouter's activity page, prompts in the codebase); **Common Pitfalls** → frequent mistakes to avoid; **Deployment** → Vercel (web) and Railway (api); **Project-Specific Patterns** → env vars, tRPC integration, CORS, SQL migrations, Supabase types/keys; **Verification Checklist** → pre-completion gates; **Agent Session Logging** + **Agent Collaboration** → multi-agent etiquette; **Template Customization** → how to adapt this template to a new project.
 
 ## Project Overview
 
@@ -25,7 +25,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
   - Zod for runtime validation and type safety
   - ioredis for caching
   - Supabase JS client (secret key for server-side operations)
-  - Langfuse for LLM observability (optional: tracing, sessions; prompts live in the codebase, not Langfuse)
+  - PostHog for product analytics and LLM analytics (optional), with OpenRouter's activity page as the per-request record; prompts live in the codebase, never a hosted prompt registry
 
 - **Deployment**:
   - Frontend: Vercel (auto-configured via vercel.json)
@@ -228,14 +228,13 @@ apps/api/
 │   │   └── routers/
 │   │       ├── health.ts        # health.check query
 │   │       ├── info.ts          # info.get query (API name/version/status)
-│   │       ├── langfuse.ts      # langfuse.test, langfuse.getPrompt, langfuse.traceExample
+│   │       ├── llm.ts           # llm.getPrompt, llm.traceExample (OpenRouter + PostHog LLM analytics scaffold)
 │   │       ├── redis.ts         # redis.test, redis.cacheSet, redis.cacheGet, redis.cacheDelete
 │   │       └── supabase.ts      # supabase.test query
 │   ├── services/
-│   │   ├── langfuse.ts          # initLangfuse/getLangfuse/isLangfuseAvailable (tracing only)
+│   │   ├── posthog.ts           # initPostHog/getPostHog/captureEvent (product + LLM analytics client)
 │   │   ├── redis.ts             # initRedis/closeRedis/getRedisClient/isRedisAvailable
-│   │   ├── supabase.ts          # initSupabase/getSupabaseClient/isSupabaseAvailable
-│   │   └── telemetry.ts         # OpenTelemetry SDK with LangfuseSpanProcessor
+│   │   └── supabase.ts          # initSupabase/getSupabaseClient/isSupabaseAvailable
 │   └── types/
 │       └── index.ts             # Zod schemas + z.infer<> types (input + output)
 ├── Dockerfile           # Docker build (node:24-alpine, used by Railway)
@@ -399,8 +398,8 @@ Present these options explicitly when a model choice is ambiguous. The best comb
 **Every LLM call goes through a routing gateway rather than a provider SDK pointed at one vendor, and the default is OpenRouter.** Vercel AI Gateway is the sanctioned alternative. A gateway is what makes the selection rules above actionable: one credential and one billing/usage surface across providers, a model swap that is a string change rather than an integration, and failover when an upstream is rate-limiting or down.
 
 - **Prefer OpenRouter unless the repo has a stated reason not to.** A broad model catalog behind one OpenAI-compatible surface (`/api/v1/chat/completions`), so it needs no bespoke client; with the Vercel AI SDK, use the `@openrouter/ai-sdk-provider` package in place of `@ai-sdk/anthropic`. Choose Vercel AI Gateway when the app already runs on Vercel and wants that integration — and write the reason into this file, or the next agent "fixes" it back.
-- **The shipped scaffold already follows this.** `langfuse.traceExample` in `src/trpc/routers/langfuse.ts` builds its model with `createOpenRouter` from `@openrouter/ai-sdk-provider` (the 2.x line, which peers on `ai@6`; 3.x needs `ai@7`) and one `OPENROUTER_API_KEY`. Copy that call site for new LLM calls; no vendor SDK (`@ai-sdk/anthropic`, `@ai-sdk/openai`) is installed, and adding one needs the justification above.
-- **Set the data-retention policy before the first real request; the default is not fail-closed.** OpenRouter's account privacy settings decide whether traffic may route to providers that train on it — separate settings for paid and free models, plus per-request data-policy filters to narrow further — and that setting governs the upstreams, not what the gateway itself keeps. A gateway sees every prompt and completion, so its retention and logging get the same single project-wide treatment as Langfuse's (see **Langfuse (Tracing Yes, Prompts No)**), and the decision belongs in this file rather than in one person's dashboard.
+- **The shipped scaffold already follows this.** `llm.traceExample` in `src/trpc/routers/llm.ts` builds its model with `createOpenRouter` from `@openrouter/ai-sdk-provider` (the 2.x line, which peers on `ai@6`; 3.x needs `ai@7`) and one `OPENROUTER_API_KEY`. Copy that call site for new LLM calls; no vendor SDK (`@ai-sdk/anthropic`, `@ai-sdk/openai`) is installed, and adding one needs the justification above.
+- **Set the data-retention policy before the first real request; the default is not fail-closed.** OpenRouter's account privacy settings decide whether traffic may route to providers that train on it — separate settings for paid and free models, plus per-request data-policy filters to narrow further — and that setting governs the upstreams, not what the gateway itself keeps. A gateway sees every prompt and completion, so its retention and logging get the same single project-wide treatment as PostHog's LLM analytics (see **LLM Observability**), and the decision belongs in this file rather than in one person's dashboard.
 - **A gateway key is account-scoped: it reaches every provider that account can reach, and all of its credit.** That is the **Security Posture** blast-radius rule rather than a new one — scope it with whatever the gateway actually offers (a dedicated account, per-key credit limits, a separate key per project), never one shared key pasted into every repo's env.
 - **Going direct to a provider needs a justification in the diff**, not silence. The legitimate cases are a provider-specific capability the gateway does not expose, and a hard requirement that traffic not transit a third party. Otherwise the direct SDK is the thing this rule exists to prevent.
 - **A gateway is a routing layer, not a reason to stop pinning the model.** Pin explicit model ids per call site; a floating alias silently changes behavior, and a model swap is a behavior change to diff over real inputs before it ships.
@@ -443,55 +442,37 @@ Every provider's cache keys on the exact bytes of the prompt prefix. A single by
 - **OpenRouter** (the default route — see **Routing** above): two ways to cache against Anthropic upstreams — a single top-level `cache_control`, which auto-places the breakpoint on the last cacheable block and advances it as the conversation grows, or up to four explicit per-block breakpoints for fine control. Cached tokens report in the OpenAI shape (`usage.prompt_tokens_details.cached_tokens`, alongside `cache_write_tokens`), **not** Anthropic's `cache_read_input_tokens` — an agent checking the upstream provider's field name reads zero and concludes caching is broken. Sticky routing keeps a conversation on whichever upstream holds the cache, but only while that provider's cache-read price beats its normal prompt price, and it lapses after 10 minutes of inactivity; pass a `session_id` (top-level body field or `x-session-id` header, ≤256 characters) to pin the key explicitly instead of leaving it derived from a message hash.
 - Other gateways and hosted providers (Bedrock, Vertex, etc.) generally proxy the underlying provider's caching — same prefix-stability rules apply.
 
-### Langfuse (Tracing Yes, Prompts No)
+### LLM Observability (PostHog LLM Analytics + OpenRouter Activity; Prompts in the Codebase)
 
-When Langfuse is configured in this repo, then:
+- **Every LLM call is traced through PostHog LLM analytics.** Wrap the model with `withTracing` from `@posthog/ai/vercel` before handing it to `generateText`/`streamText` (the pattern below). Each model call emits one `$ai_generation` event carrying `$ai_provider` (`openrouter`), `$ai_model`, `$ai_input_tokens` (the uncached part), `$ai_cache_read_input_tokens`, `$ai_output_tokens`, `$ai_latency`, `$ai_tools`, and `$ai_usage` (the provider's raw usage, including OpenRouter's `cost`). Cache hit rate is chartable straight from those fields. Feed the `$ai_*` fields to any dashboard; never re-derive cost from token counts by hand.
+- **Group by session.** Pass the conversation's session id as `posthogTraceId`, so every generation of one conversation lands in one PostHog trace, and as OpenRouter's `session_id` (`extraBody`), so sticky routing keeps the conversation on the upstream that holds its prompt cache. When the client supplies no session id, generate one; no call is session-less.
+- **Redaction is one project-wide switch, never a per-call-site choice.** `POSTHOG_LLM_PRIVACY_MODE` (default `true`) sets `posthogPrivacyMode` on every wrapped model: PostHog keeps model, tokens, cost, and latency and stores `$ai_input` and `$ai_output_choices` as `null`. Set it to `false` deliberately, in the deployed environment, when prompt and completion text may be retained.
+- **OpenRouter's activity page is the per-request record, and it needs no code.** With usage accounting on (`usage: { include: true }` in the model settings), every request appears at [openrouter.ai/activity](https://openrouter.ai/activity) with cost including cache savings, the provider that served it and any fallback, latency and time to first token, and the session and request ids. Use it for a single request; use PostHog for trends, sessions, and cross-feature analysis.
+- **Prompts live in the codebase, never in a hosted prompt registry.** `src/prompts/` is the single source of truth (`getPrompt` handles `{{variable}}` interpolation), version-controlled next to the code that uses it and readable by terminal agents as context. PostHog offers prompt management; do not use it.
+- **Without a PostHog key the model runs unwrapped** and the scaffold still works with OpenRouter alone; `health.check` reports `posthog` and `openrouter` as `configured` or `unconfigured` without sending anything. `shutdownPostHog()` flushes queued events on exit; it is already wired in `src/index.ts`.
 
-- **All LLM calls must be recorded through Langfuse tracing and sessions.** Every call site that hits an LLM should be wrapped in the tracing setup (observations/spans grouped by session ID — see the Langfuse Integration section below) so cost, latency, and behavior are observable per conversation.
-- **Do not store LLM prompts in Langfuse** (no `getPrompt()` / Langfuse prompt management). Prompts live **in the codebase** as the single source of truth — so they're version-controlled alongside the code that uses them, and so terminal agents like Claude Code can easily read them as valuable context.
-- **Track cache hit rate in Langfuse.** Report cache tokens as distinct usage types on generation observations so Langfuse prices them correctly and hit rate is chartable. Through OpenRouter they arrive as `result.usage.cachedInputTokens` (from `prompt_tokens_details.cached_tokens`), never under the upstream vendor's field names. With OTel-based ingestion, verify cache tokens aren't double-counted (some genai conventions fold cache reads into `usage.input`). AI SDK `experimental_telemetry` spans carry provider metadata through automatically.
-
-### Langfuse Integration (Optional — Setup & AI SDK Patterns)
-
-[Langfuse](https://langfuse.com/) provides observability for LLM applications. Per the policy above, this template uses it for **tracing and session tracking only** — prompts live in the codebase at `apps/api/src/prompts/` (the `getPrompt` helper there handles `{{variable}}` interpolation), never in Langfuse prompt management.
-
-**Setup:**
-
-1. Get keys from [cloud.langfuse.com/project/\_/settings](https://cloud.langfuse.com/project/_/settings)
-2. Set in `.env`:
-   ```bash
-   LANGFUSE_PUBLIC_KEY=your-key
-   LANGFUSE_SECRET_KEY=your-key
-   LANGFUSE_BASE_URL=https://cloud.langfuse.com  # optional
-   ```
-3. Langfuse is automatically initialized on server startup
-4. Health check at `/health` includes Langfuse status
-
-**Features:**
-
-- `src/prompts/index.ts` — LLM prompts (codebase source of truth) with a registry, `{{variable}}` interpolation, and a typed `getPrompt`
-- `src/services/langfuse.ts` — Langfuse client init for tracing/sessions; gracefully degrades if keys are missing
-- `src/services/telemetry.ts` — OpenTelemetry SDK with LangfuseSpanProcessor (auto-captures AI SDK spans)
-- `langfuse.test` (tRPC query) — Verify Langfuse connectivity
-- `langfuse.getPrompt` (tRPC query) — Fetch and render a codebase prompt with variable substitution; works whether or not Langfuse is configured
-- `langfuse.traceExample` (tRPC mutation) — Runnable scaffold: Vercel AI SDK through OpenRouter (Claude Haiku 4.5 by catalog id) + tools + tracing + sessions + OpenRouter's request-level prompt-caching breakpoint to copy
-
-**AI SDK + Langfuse tracing pattern:**
+### LLM Scaffold (AI SDK + OpenRouter + PostHog)
 
 The template uses [Vercel AI SDK](https://sdk.vercel.ai/) (`ai`) with the [OpenRouter provider](https://openrouter.ai/docs/guides/community/vercel-ai-sdk) (`@openrouter/ai-sdk-provider`) for LLM calls, so any model in OpenRouter's catalog is one string away and no vendor SDK is installed. Both `generateText` and `streamText` are current, non-deprecated APIs:
 
 - `generateText` — non-interactive/agent use; waits for full completion before returning
 - `streamText` — interactive/chat use; streams tokens to the client in real time
 
-Tracing flows through OpenTelemetry automatically via `experimental_telemetry` — no manual span creation needed for token counts or model metadata.
+**Setup:** set `OPENROUTER_API_KEY` in `apps/api/.env` (one key for the whole catalog, from [openrouter.ai/keys](https://openrouter.ai/keys)) and, for tracing, `POSTHOG_API_KEY` (the same project key the web app uses). Both are optional at boot; `llm.traceExample` refuses without the OpenRouter key.
 
-**Full pattern with tool call (from `src/trpc/routers/langfuse.ts`):**
+**Procedures:**
+
+- `llm.getPrompt` (tRPC query) — Fetch and render a codebase prompt with variable substitution
+- `llm.traceExample` (tRPC mutation) — Runnable scaffold: OpenRouter model + tool + multi-step generation + PostHog tracing grouped by session + OpenRouter's request-level prompt-caching breakpoint
+
+**Full pattern with tool call (from `src/trpc/routers/llm.ts`):**
 
 ```typescript
 import { generateText, tool, stepCountIs } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { withTracing } from "@posthog/ai/vercel";
 import { z } from "zod";
-import { startActiveObservation, propagateAttributes } from "@langfuse/tracing";
+import { getPostHog } from "@/services/posthog.js";
 
 // Pin the model per call site by OpenRouter catalog id (https://openrouter.ai/models).
 const MODEL = "anthropic/claude-haiku-4.5";
@@ -505,55 +486,49 @@ const getCurrentWeather = tool({
   execute: async ({ city }) => ({ city, temperature: 68, condition: "Sunny" }),
 });
 
-// Every call gets a Langfuse session — fall back to a generated ID when the
-// client doesn't supply one, so no LLM call is session-less
-const effectiveSessionId = sessionId ? String(sessionId) : `anon-${crypto.randomUUID()}`;
-const traceAttrs = { sessionId: effectiveSessionId };
+// Every call belongs to a session; generate one when the client sends none
+const effectiveSessionId = sessionId || `anon-${crypto.randomUUID()}`;
 
 const openrouter = createOpenRouter({ apiKey: env.OPENROUTER_API_KEY });
-const model = openrouter(MODEL, {
+const baseModel = openrouter(MODEL, {
   usage: { include: true }, // real token counts + cost on providerMetadata.openrouter.usage
   extraBody: { session_id: effectiveSessionId }, // pins OpenRouter's sticky routing to the cached upstream
 });
 
-await startActiveObservation("my-llm-call", async (span) => {
-  span.update({ input: { prompt } }); // annotate the Langfuse observation
+// PostHog LLM analytics: one $ai_generation per model call, grouped by trace id.
+// Without a PostHog key the model runs unwrapped.
+const posthog = getPostHog();
+const model = posthog
+  ? withTracing(baseModel, posthog, {
+      posthogDistinctId: userId ?? effectiveSessionId,
+      posthogTraceId: effectiveSessionId,
+      posthogPrivacyMode: env.POSTHOG_LLM_PRIVACY_MODE,
+      posthogProperties: { route: "my-route" },
+    })
+  : baseModel;
 
-  await propagateAttributes(traceAttrs, async () => {
-    const result = await generateText({
-      model,
-      prompt,
-      tools: { getCurrentWeather },
-      // stopWhen enables multi-step: model calls tool → gets result → generates final text
-      stopWhen: stepCountIs(3),
-      // Request-level breakpoint: becomes OpenRouter's top-level cache_control, which places
-      // the breakpoint on the last cacheable block and advances it as the conversation grows.
-      // Engages once the prefix exceeds the model's minimum cacheable size.
-      providerOptions: { openrouter: { cacheControl: { type: "ephemeral" } } },
-      experimental_telemetry: {
-        isEnabled: true,
-        functionId: "my-llm-call", // label shown in Langfuse
-        metadata: { route: "/my-route" },
-      },
-    });
-
-    generatedText = result.text;
-    // result.usage: { inputTokens, outputTokens, totalTokens, cachedInputTokens }
-    // result.providerMetadata?.openrouter?.usage: { cost, totalTokens, ... } (OpenRouter's own accounting)
-    // result.steps[].toolResults: [{ toolName, input, output }]
-  });
-
-  span.update({ output: { text: generatedText } });
+const result = await generateText({
+  model,
+  prompt,
+  tools: { getCurrentWeather },
+  // stopWhen enables multi-step: model calls tool → gets result → generates final text
+  stopWhen: stepCountIs(3),
+  // Request-level breakpoint: becomes OpenRouter's top-level cache_control, which places
+  // the breakpoint on the last cacheable block and advances it as the conversation grows.
+  providerOptions: { openrouter: { cacheControl: { type: "ephemeral" } } },
 });
+
+// result.usage: { inputTokens, outputTokens, totalTokens, cachedInputTokens }
+// result.providerMetadata?.openrouter?.usage: { cost, totalTokens, ... } (OpenRouter's own accounting)
+// result.steps[].toolResults: [{ toolName, input, output }]
 ```
 
 **Key concepts:**
 
 - `tool({ description, inputSchema, execute })` — AI SDK v6 tool definition. Use `inputSchema` (Zod), NOT `parameters`. The `execute` function receives validated input and returns a result the model can use.
 - `stopWhen: stepCountIs(N)` — enables multi-step agentic loops: model calls tool → SDK executes it → result fed back → model continues. Caps at N steps.
-- `startActiveObservation(name, fn)` — wraps the async function in a Langfuse observation. Call `span.update({ input, output })` to annotate. Ends automatically when `fn` resolves.
-- `propagateAttributes({ sessionId })` — binds a session ID to all child spans via Node.js async context. Groups multiple requests into one session in the Langfuse UI.
-- `experimental_telemetry` — enables AI SDK's built-in OTel instrumentation. `LangfuseSpanProcessor` in `telemetry.ts` captures these spans automatically.
+- `withTracing(model, posthog, options)` — returns the same model with PostHog capture around every call. `posthogDistinctId` is the person (the authenticated user id where there is one, else the session id), `posthogTraceId` groups a conversation, `posthogProperties` are extra event properties, `posthogPrivacyMode` drops the text.
+- `usage: { include: true }` on the OpenRouter model — OpenRouter has no `count_tokens` endpoint, so this is how real counts and cost come back.
 
 **Switching models:**
 
@@ -577,7 +552,6 @@ const result = streamText({
   prompt,
   tools: { getCurrentWeather },
   stopWhen: stepCountIs(3),
-  experimental_telemetry: { isEnabled: true, functionId: "my-stream" },
 });
 
 // Pipe to Express response (SSE):
@@ -588,17 +562,15 @@ result.pipeTextStreamToResponse(res);
 
 ```bash
 # Requires OPENROUTER_API_KEY in apps/api/.env (set OPENROUTER_BASE_URL only to point at a proxy or a local stand-in)
-curl -X POST http://localhost:8000/trpc/langfuse.traceExample \
+curl -X POST http://localhost:8000/trpc/llm.traceExample \
   -H "Content-Type: application/json" \
   -H "x-trpc-source: curl" \
   -d '{"prompt": "What'\''s the weather in Paris?", "sessionId": "my-session-123"}'
 # Returns (in the tRPC envelope {"result":{"data":{...}}}):
-#   { text, usage, toolCalls: [{ tool, input, output }], sessionId, langfuseTraced }
+#   { text, usage, toolCalls: [{ tool, input, output }], sessionId, posthogTraced, model }
 ```
 
-`src/trpc/routers/langfuse.test.ts` runs the same procedure against a local stand-in for OpenRouter (no key, no network) and asserts the wire shape (model id, top-level `cache_control`, `session_id`, `usage.include`, tools, bearer key), the cached-token and cost mapping, and a tool round trip. Copy that pattern when adding an LLM call: the request body is the part no typecheck can see.
-
-All Langfuse features are **optional** and gracefully degrade if not configured.
+`src/trpc/routers/llm.test.ts` runs the same procedure against one local stand-in that plays both OpenRouter and PostHog (no keys, no network) and asserts the wire shape (model id, top-level `cache_control`, `session_id`, `usage.include`, tools, bearer key), the cached-token and cost mapping, a tool round trip, and the `$ai_generation` event PostHog receives (trace id, split token counts, redacted text). `llm.no-posthog.test.ts` and `llm.unconfigured.test.ts` cover the degraded configurations in their own processes, since the env singleton is read once per process: no PostHog key runs the model unwrapped with `posthogTraced: false`, and no OpenRouter key fails closed with `PRECONDITION_FAILED` while `getPrompt` keeps working. Copy that pattern when adding an LLM call: the request body and the captured event are the parts no typecheck can see.
 
 ## Common Pitfalls to Avoid
 
