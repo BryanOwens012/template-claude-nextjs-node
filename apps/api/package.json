@@ -12,16 +12,16 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@openrouter/ai-sdk-provider": "^2.10.0",
+    "@openrouter/ai-sdk-provider": "^3.0.0",
     "@posthog/ai": "^8.10.0",
     "@supabase/supabase-js": "^2.114.0",
     "@trpc/server": "^11.18.0",
-    "ai": "^6.0.275",
+    "ai": "^7.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "http-errors": "^2.0.1",
-    "ioredis": "^5.11.1",
+    "ioredis": "^6.0.0",
     "posthog-node": "^5.51.6",
     "zod": "^4.5.4"
   },
@@ -32,7 +32,7 @@
     "@types/node": "^25.9.5",
     "tsc-alias": "^1.9.4",
     "tsx": "^4.23.13",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.0"
   },
   "engines": {
     "node": ">=24.0.0"
