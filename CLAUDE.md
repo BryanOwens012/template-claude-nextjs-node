@@ -1,6 +1,6 @@
 # Claude Code Instructions
 
-As a reference, this file is organized as follows: **Project Overview** → what this template is and its tech stack; **Development Guidelines** → how to behave and work (respond in words first; be liberal with tools/MCPs), code quality, TS/React/Express style, dependency management, code organization, testing, security posture, destructive-deletion and shell option-injection guards, performance & prefetching, and git workflow; **LLM Model Selection** + **LLM Calls** → model/reasoning-choice doctrine, routing through OpenRouter (Vercel AI Gateway as the alternative), prompt caching + cache pre-warming, and LLM observability (PostHog LLM analytics, OpenRouter's activity page, prompts in the codebase); **Common Pitfalls** → frequent mistakes to avoid; **Deployment** → Vercel (web) and Railway (api); **Project-Specific Patterns** → env vars, tRPC integration, CORS, SQL migrations, Supabase types/keys; **Verification Checklist** → pre-completion gates; **Agent Session Logging** + **Agent Collaboration** → multi-agent etiquette; **Template Customization** → how to adapt this template to a new project.
+As a reference, this file is organized as follows: **Project Overview** → what this template is and its tech stack; **Development Guidelines** → how to behave and work (respond in words first; be liberal with tools/MCPs), code quality, TS/React/Express style, dependency management, code organization, testing, security posture, destructive-deletion and shell option-injection guards, performance & prefetching, and git workflow; **LLM Model Selection** + **LLM Calls** → model/reasoning-choice doctrine, routing through OpenRouter (Vercel AI Gateway as the alternative), prompt caching + cache pre-warming, and LLM observability (PostHog LLM analytics, OpenRouter's activity page, prompts in the codebase); **Common Pitfalls** → frequent mistakes to avoid; **Deployment** → Vercel (web) and Railway (api); **Project-Specific Patterns** → env vars, tRPC integration, CORS, SQL migrations, Supabase types/keys; **Verification Checklist** → pre-completion gates; **Agent Collaboration** → multi-agent etiquette; **Template Customization** → how to adapt this template to a new project.
 
 ## Project Overview
 
@@ -283,6 +283,7 @@ scripts/
 
 - **Least privilege (tightest scope)**: always keep security to the tightest (minimal scope) possible that still accomplishes all our goals. Grant exactly the access needed and nothing more. This applies to Supabase RLS/policies, GRANTs, and roles, as well as to code (API surface, permissions, env access, etc.).
 - **Fail-closed, not fail-open**: when an error occurs, the default must be to block access rather than grant it. Never let a failure path fall through to allowing an action; on any uncertainty or error, deny.
+- **entire.io session logging is off.** `.entire/` is gitignored and never committed; don't add `entire hooks` to `.claude/settings.json` or run `entire enable`. `.claude/settings.json` denies the Read tool on `.entire/metadata/`, which does not stop a shell read.
 
 ### Destructive Deletion Commands (`rm -rf`) — Extreme Caution
 
@@ -937,15 +938,6 @@ Before considering any task complete:
 - [ ] No secrets or credentials in code
 - [ ] Environment variables properly configured
 - [ ] `package.json` and `package-lock.json` updated (if Node.js)
-
-## Agent Session Logging
-
-This project uses [entire.io](https://entire.io/) to log coding agent (Claude Code, etc.) prompts and responses. The `.entire/` directory at the repo root stores the configuration:
-
-- **`.entire/settings.json`** — committed; controls logging strategy (`"manual-commit"`) and telemetry (`false`)
-- **`.entire/logs/`**, **`.entire/tmp/`**, **`.entire/metadata/`** — gitignored internally by `.entire/.gitignore`
-
-You do not need to interact with this directory. It runs passively in the background during Claude Code sessions.
 
 ## Agent Collaboration
 

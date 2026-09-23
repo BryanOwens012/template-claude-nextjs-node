@@ -124,8 +124,6 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 │   └── test_services.sh      # Service connectivity test script
 ├── .husky/                   # pre-commit + lockfile-sync hooks (post-merge/rewrite/checkout/commit)
 ├── .claude/gauntlet.json     # Declared pre-merge quality gate
-├── .entire/                  # entire.io agent session logger (see below)
-│   └── settings.json         # Logging config (committed; logs gitignored internally)
 ├── .mcp.json                 # MCP servers for AI agents (Vercel, Railway, Supabase read-only)
 ├── AGENTS.md                 # AI agent entry point (redirects to CLAUDE.md)
 ├── CLAUDE.md                 # Comprehensive development guidelines and best practices
@@ -473,15 +471,6 @@ When working with AI assistants, they should:
 
 1. Read `CLAUDE.md` for complete development guidelines
 2. Read `README.md` for project overview and setup
-
-### Agent Session Logging (entire.io)
-
-This template uses [entire.io](https://entire.io/) to log Claude Code (and other coding agent) prompts and responses. The `.entire/` directory at the repo root stores the configuration:
-
-- **`.entire/settings.json`** — committed; controls logging strategy and telemetry
-- **`.entire/logs/`**, **`.entire/tmp/`**, **`.entire/metadata/`** — gitignored by `.entire/.gitignore`; contain the actual session data
-
-The current config (`strategy: "manual-commit"`) means sessions are only persisted when you explicitly commit them. Telemetry is disabled.
 
 ### Code Quality Automation (Formatters & Linters)
 

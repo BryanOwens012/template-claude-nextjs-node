@@ -276,3 +276,6 @@ site/
 
 # Screenshots
 screenshots/
+
+# entire.io session data (logging is off)
+/.entire/
