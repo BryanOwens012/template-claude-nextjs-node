@@ -277,5 +277,5 @@ site/
 # Screenshots
 screenshots/
 
-# entire.io agent session logs (local only, never committed; logging is disabled)
-.entire/
+# entire.io session data (logging is off)
+/.entire/

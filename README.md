@@ -472,10 +472,6 @@ When working with AI assistants, they should:
 1. Read `CLAUDE.md` for complete development guidelines
 2. Read `README.md` for project overview and setup
 
-### Agent Session Logging (entire.io)
-
-entire.io session logging is disabled in this template. `.entire/` is gitignored, so a local copy left over from earlier sessions stays on disk and is never committed. Do not re-add the `entire hooks claude-code …` entries to `.claude/settings.json`.
-
 ### Code Quality Automation (Formatters & Linters)
 
 This template includes automated code quality checks powered by **Biome**, **Prettier**, and **sql-formatter**:
