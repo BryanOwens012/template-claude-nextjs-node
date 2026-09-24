@@ -10,9 +10,9 @@
 #   find . -name package.json -not -path '*/node_modules/*' -not -path '*/.next/*'
 #   find . -name Dockerfile -not -path '*/node_modules/*'
 #
-# The failure this exists for: a dependency bot moves `.nvmrc` and the Dockerfiles and
-# leaves `engines` behind, so nothing refuses to run until something meets the wrong
-# runtime in production.
+# The failure this exists for: a Node bump that moves `.nvmrc` or a Dockerfile and leaves
+# an `engines` field behind (or the reverse), so nothing refuses to run until something
+# meets the wrong runtime in production.
 #
 # Exits non-zero listing every declaration that disagrees. Read-only; changes nothing.
 set -euo pipefail
@@ -49,8 +49,8 @@ PRUNE=('(' -name node_modules -o -name .next -o -name .git -o -name dist ')' -pr
 # --- engines.node in every package.json we ship -------------------------------------------
 # Every manifest must state one, or a package silently accepts any Node at all.
 #
-# One node process reads them all. Spawning node per manifest cost ~3s, and this check runs
-# in the gauntlet — a cost paid on every commit, in every lane, forever.
+# One node process reads them all, rather than one per manifest: this check runs in the
+# gauntlet, so its startup cost is paid on every commit, and it grows with every app added.
 while IFS="$(printf '\t')" read -r manifest declared; do
 	[ -n "$manifest" ] || continue
 	manifests_seen=$((manifests_seen + 1))
@@ -106,12 +106,12 @@ fi
 # match is a silent skip rather than a failure. A Dockerfile may lowercase `from`, put
 # BuildKit flags before the image (`--platform=$BUILDPLATFORM`), qualify the registry
 # (`docker.io/library/node:22`), and name a stage after it (`AS builder`). All are
-# ordinary, none changes the pin, and the earlier `^FROM +node:` grep saw none of them.
+# ordinary, none changes the pin, and a `^FROM +node:` grep would see none of them.
 #
 # awk splits on whitespace, so indentation and tabs cost nothing: $1 is the instruction,
 # leading `--flag` tokens are skipped, and the next token is the image. Stopping there is
-# what drops the stage name — the previous version relied on `cut -d-` truncating it as a
-# side effect, which worked only because every real tag happened to contain a dash.
+# what drops the stage name; truncating the tag at the first `-` instead would only work
+# while every tag happened to contain a dash, and would misread a bare `node:22 AS x`.
 dockerfiles_seen=0
 node_pins_seen=0
 while IFS= read -r dockerfile; do
@@ -176,8 +176,8 @@ fi
 
 if [ "$problems" -gt 0 ]; then
 	echo "check-node-version-ssot: FAIL — $problems declaration(s) disagree with .nvmrc ($expected)." >&2
-	echo "Update them together, or change .nvmrc and re-run. A dependency bot moves the" >&2
-	echo ".nvmrc and Dockerfiles only, so this check is what catches the half it leaves behind." >&2
+	echo "Update them together in one change, or change .nvmrc and re-run. A partial bump" >&2
+	echo "leaves the tree disagreeing with itself; this check is what catches the half left behind." >&2
 	exit 1
 fi
 

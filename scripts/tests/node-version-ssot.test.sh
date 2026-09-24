@@ -35,10 +35,13 @@ if [ -z "$SANDBOX" ] || [ ! -d "$SANDBOX" ]; then
 	exit 1
 fi
 # Guarded per the destructive-deletion rules: non-empty, and inside the temp dir this
-# test created. Inlined into the trap rather than a named function — a function reached
-# only through `trap` looks uninvoked to shellcheck, and the honest fix is to not have
-# one rather than to suppress the warning. Fires on the failure path too.
-trap 'case "$SANDBOX" in /tmp/* | /var/folders/*) rm -rf "${SANDBOX:?}" ;; esac' EXIT INT TERM
+# test created. Kept inline in each trap rather than a named function — a function reached
+# only through `trap` looks uninvoked to shellcheck. EXIT covers normal and failing runs;
+# INT and TERM clean up and then exit, because a signal handler that does not exit lets
+# the script resume and keep running after Ctrl-C.
+trap 'case "$SANDBOX" in /tmp/* | /var/folders/*) rm -rf "${SANDBOX:?}" ;; esac' EXIT
+trap 'case "$SANDBOX" in /tmp/* | /var/folders/*) rm -rf "${SANDBOX:?}" ;; esac; exit 130' INT
+trap 'case "$SANDBOX" in /tmp/* | /var/folders/*) rm -rf "${SANDBOX:?}" ;; esac; exit 143' TERM
 
 # Build a tree that agrees with itself on Node 22.
 build_sandbox() {
@@ -78,6 +81,11 @@ printf '{\n  "name": "web"\n}\n' >"$SANDBOX/tree/apps/web/package.json"
 if out="$(run_check)"; then bad "missing engines.node passed"; else ok "a manifest declaring NO engines.node fails"; fi
 
 build_sandbox
+printf '{ this is not json\n' >"$SANDBOX/tree/apps/web/package.json"
+if out="$(run_check)"; then bad "a malformed package.json passed"; else ok "a malformed package.json fails"; fi
+case "$out" in *"apps/web/package.json is not valid JSON"*) ok "names the malformed manifest, not a missing field" ;; *) bad "wrong reason: $out" ;; esac
+
+build_sandbox
 rm -f "$SANDBOX/tree/.nvmrc"
 if out="$(run_check)"; then bad "missing .nvmrc passed"; else ok "a missing .nvmrc fails rather than defaulting"; fi
 
@@ -97,10 +105,10 @@ case "$out" in *"examined no package.json"*) ok "says the check is broken, not t
 
 echo
 echo "check-node-version-ssot — the FROM parsing accepts every ordinary Dockerfile form"
-# Each case below was mis-handled by the original `^FROM +node:` grep plus `cut -d-`:
-# either skipped entirely (reported OK having examined nothing) or failed on a correct
-# file. The dashed real-world tags hid all of it — `cut -d-` truncated the stage name as
-# a side effect, so the bug only surfaced on a bare `node:22`.
+# Each case below would defeat a naive `^FROM +node:` grep plus `cut -d-`: either
+# skipped entirely (reporting OK having examined nothing) or failed on a correct file.
+# Dashed real-world tags would hide it — `cut -d-` truncates the stage name as a side
+# effect, so the bug would only surface on a bare `node:22`.
 
 build_sandbox
 printf 'FROM node:22 AS builder\n' >"$SANDBOX/tree/apps/api/Dockerfile"
@@ -134,6 +142,11 @@ build_sandbox
 printf 'FROM node AS builder\n' >"$SANDBOX/tree/apps/api/Dockerfile"
 if out="$(run_check)"; then bad "an untagged node image passed"; else ok "an untagged 'FROM node' fails rather than being ignored"; fi
 case "$out" in *"no tag"*) ok "says the pin declares no major" ;; *) bad "wrong reason: $out" ;; esac
+
+build_sandbox
+printf 'FROM node:lts-alpine\n' >"$SANDBOX/tree/apps/api/Dockerfile"
+if out="$(run_check)"; then bad "a non-numeric tag passed"; else ok "a tag with no numeric major (node:lts-alpine) fails"; fi
+case "$out" in *"whose Node major cannot be read"*) ok "says the major cannot be read" ;; *) bad "wrong reason: $out" ;; esac
 
 build_sandbox
 printf 'FROM node@sha256:0000000000000000000000000000000000000000000000000000000000000000\n' >"$SANDBOX/tree/apps/api/Dockerfile"
