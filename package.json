@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Next.js + Node.js template monorepo with tRPC v11 + TanStack Query",
   "private": true,
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "typecheck": "npm run build:api && npm run typecheck:web && npm run typecheck:railway",
     "typecheck:api": "cd apps/api && npx tsc --noEmit",
@@ -47,7 +50,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.11",
-    "@types/node": "^25.9.5",
+    "@types/node": "^24.13.6",
     "husky": "^9.1.7",
     "lint-staged": "^17.4.1",
     "prettier": "^3.9.6",
