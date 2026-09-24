@@ -118,6 +118,7 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 ├── scripts/
 │   ├── install-changed-lockfiles.sh  # npm install per changed lockfile (shared by the sync hooks)
 │   ├── check-hooks-installed.sh      # npm run check:hooks
+│   ├── check-node-version-ssot.sh    # npm run check:node-version
 │   ├── new-worktree.sh               # npm run worktree:new
 │   ├── run-shell-tests.sh            # npm run test:scripts:sh
 │   ├── tests/                        # *.test.sh suites for the scripts above
@@ -510,6 +511,7 @@ npm run lint:check
 
 # Hooks, worktrees, and shell tests
 npm run check:hooks                              # fail if git would run no hooks here
+npm run check:node-version                       # fail if any engines.node / FROM node: disagrees with .nvmrc
 npm run worktree:new -- ../repo.feat bryan/feat  # provisioned worktree, hooks verified
 npm run test:scripts:sh                          # every scripts/**/*.test.sh, discovered by find
 npm run test:api                                 # apps/api unit tests

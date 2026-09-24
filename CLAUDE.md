@@ -107,7 +107,8 @@ When you install a new package:
 - Each service under `apps/` has its own `package.json` and `package-lock.json`
 - `apps/api/package.json` - Node.js dependencies for the API service
 - Each service is independently deployable with its own dependencies
-- If you add a new service, create its own `package.json`
+- If you add a new service, create its own `package.json`, with `"engines": { "node": ">=<major>.0.0" }` matching `.nvmrc`
+- **`.nvmrc` holds the Node major.** Every `engines.node` and every Dockerfile `FROM node:` tag must state the same major; `npm run check:node-version` (in the gauntlet) fails on any that drift. Change the major everywhere in one commit.
 
 **Example workflow:**
 
@@ -257,6 +258,7 @@ vercel.json            # Vercel deployment config for web app (simplified)
 scripts/
 ├── install-changed-lockfiles.sh  # Shared by the four sync hooks: npm install per changed lockfile
 ├── check-hooks-installed.sh      # npm run check:hooks — fails when git would run no hooks here
+├── check-node-version-ssot.sh    # npm run check:node-version — .nvmrc is the Node major; every engines.node and FROM node: must agree
 ├── new-worktree.sh               # npm run worktree:new — worktree + npm ci + api build + hook check
 ├── run-shell-tests.sh            # npm run test:scripts:sh — finds and runs every *.test.sh, bounded
 └── tests/*.test.sh               # bash suites for the scripts above, sandboxed, npm stubbed

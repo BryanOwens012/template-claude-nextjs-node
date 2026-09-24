@@ -31,6 +31,7 @@
     "format:shell": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shfmt --write --simplify'",
     "format:shell:check": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shfmt --diff --simplify'",
     "check:hooks": "bash scripts/check-hooks-installed.sh",
+    "check:node-version": "bash scripts/check-node-version-ssot.sh",
     "worktree:new": "bash scripts/new-worktree.sh",
     "test:scripts:sh": "bash scripts/run-shell-tests.sh",
     "test:api": "cd apps/api && npm test",
