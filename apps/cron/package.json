@@ -9,11 +9,11 @@
     "start:keep-alive": "node dist/src/keep-alive.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.114.0"
+    "@supabase/supabase-js": "^2.117.1"
   },
   "devDependencies": {
-    "@types/node": "^25.9.5",
-    "tsx": "^4.23.13",
+    "@types/node": "^24.13.6",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3"
   },
   "engines": {

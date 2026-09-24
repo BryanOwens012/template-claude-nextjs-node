@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Next.js + Node.js template monorepo with tRPC v11 + TanStack Query",
   "private": true,
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "typecheck": "npm run build:api && npm run typecheck:web && npm run typecheck:railway",
     "typecheck:api": "cd apps/api && npx tsc --noEmit",
@@ -28,6 +31,7 @@
     "format:shell": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shfmt --write --simplify'",
     "format:shell:check": "sh -c 'f=$(git ls-files \"*.sh\"); [ -z \"$f\" ] && exit 0; echo \"$f\" | xargs shfmt --diff --simplify'",
     "check:hooks": "bash scripts/check-hooks-installed.sh",
+    "check:node-version": "bash scripts/check-node-version-ssot.sh",
     "worktree:new": "bash scripts/new-worktree.sh",
     "test:scripts:sh": "bash scripts/run-shell-tests.sh",
     "test:api": "cd apps/api && npm test",
@@ -46,13 +50,13 @@
     ]
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.11",
-    "@types/node": "^25.9.5",
+    "@biomejs/biome": "2.5.14",
+    "@types/node": "^24.13.6",
     "husky": "^9.1.7",
-    "lint-staged": "^17.4.1",
-    "prettier": "^3.9.6",
+    "lint-staged": "^17.5.1",
+    "prettier": "^3.9.9",
     "railway": "^3.11.0",
-    "sql-formatter": "15.8.2",
+    "sql-formatter": "15.9.0",
     "typescript": "^6.0.3"
   }
 }
