@@ -119,12 +119,14 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 │   ├── install-changed-lockfiles.sh  # npm install per changed lockfile (shared by the sync hooks)
 │   ├── check-hooks-installed.sh      # npm run check:hooks
 │   ├── check-node-version-ssot.sh    # npm run check:node-version
+│   ├── gen-supabase-types.sh         # Regenerate Supabase types (see Database Migrations)
 │   ├── new-worktree.sh               # npm run worktree:new
 │   ├── run-shell-tests.sh            # npm run test:scripts:sh
 │   ├── tests/                        # *.test.sh suites for the scripts above
 │   └── test_services.sh      # Service connectivity test script
 ├── .husky/                   # pre-commit + lockfile-sync hooks (post-merge/rewrite/checkout/commit)
 ├── .claude/gauntlet.json     # Declared pre-merge quality gate
+├── .nvmrc                    # Node major; engines.node and Dockerfile tags must match
 ├── .mcp.json                 # MCP servers for AI agents (Vercel, Railway, Supabase read-only)
 ├── AGENTS.md                 # AI agent entry point (redirects to CLAUDE.md)
 ├── CLAUDE.md                 # Comprehensive development guidelines and best practices

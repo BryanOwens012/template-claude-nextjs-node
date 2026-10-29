@@ -251,6 +251,7 @@ apps/shared/
 
 ```
 vercel.json            # Vercel deployment config for web app (simplified)
+.nvmrc                 # Node major (source of truth for engines.node and Dockerfile FROM node:)
 .railway/railway.ts    # Railway Infrastructure as Code: API (Dockerfile → apps/api/Dockerfile), Redis, Keep-Alive
 .railway/tsconfig.json # Typechecks railway.ts against the `railway` SDK (npm run typecheck:railway)
 .claude/gauntlet.json  # Declared pre-merge quality gate, cheapest check first (check:hooks)
@@ -259,6 +260,7 @@ scripts/
 ├── install-changed-lockfiles.sh  # Shared by the four sync hooks: npm install per changed lockfile
 ├── check-hooks-installed.sh      # npm run check:hooks — fails when git would run no hooks here
 ├── check-node-version-ssot.sh    # npm run check:node-version — .nvmrc is the Node major; every engines.node and FROM node: must agree
+├── gen-supabase-types.sh         # Regenerates apps/shared/supabase/types.ts (temp file, validated, then moved into place)
 ├── new-worktree.sh               # npm run worktree:new — worktree + npm ci + api build + hook check
 ├── run-shell-tests.sh            # npm run test:scripts:sh — finds and runs every *.test.sh, bounded
 └── tests/*.test.sh               # bash suites for the scripts above, sandboxed, npm stubbed
