@@ -123,7 +123,7 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 │   ├── new-worktree.sh               # npm run worktree:new
 │   ├── run-shell-tests.sh            # npm run test:scripts:sh
 │   ├── tests/                        # *.test.sh suites for the scripts above
-│   └── test_services.sh      # Service connectivity test script
+│   └── test_services.sh              # Service connectivity test script
 ├── .husky/                   # pre-commit + lockfile-sync hooks (post-merge/rewrite/checkout/commit)
 ├── .claude/gauntlet.json     # Declared pre-merge quality gate
 ├── .nvmrc                    # Node major; engines.node and Dockerfile tags must match
@@ -521,6 +521,7 @@ npm run test:api                                 # apps/api unit tests
 # Configuration files
 .editorconfig             # Shell script formatting standards
 biome.json               # JS/TS formatting and linting rules
+.nvmrc                   # Node major; engines.node and Dockerfile FROM node: must agree
 .prettierrc              # Markdown formatter configuration
 .sql-formatter.json      # PostgreSQL SQL formatting
 .husky/                  # pre-commit + the four lockfile-sync hooks
