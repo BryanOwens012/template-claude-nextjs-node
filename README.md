@@ -120,6 +120,7 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 │   ├── check-hooks-installed.sh      # npm run check:hooks
 │   ├── check-node-version-ssot.sh    # npm run check:node-version
 │   ├── check-npm-policy.sh           # npm run check:npm-policy
+│   ├── npm_policy.py                 # Parsing half of check-npm-policy.sh
 │   ├── gen-supabase-types.sh         # Regenerate Supabase types (see Database Migrations)
 │   ├── new-worktree.sh               # npm run worktree:new
 │   ├── run-shell-tests.sh            # npm run test:scripts:sh
@@ -129,6 +130,7 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 ├── .claude/gauntlet.json     # Declared pre-merge quality gate
 ├── .nvmrc                    # Node major; engines.node and Dockerfile tags must match
 ├── .npmrc                    # engine-strict=true, registry-only installs (each workspace has the same file)
+├── tools/npm/                # The npm Docker and Vercel install with, pinned with its sha512 in the lockfile
 ├── .mcp.json                 # MCP servers for AI agents (Vercel, Railway, Supabase read-only)
 ├── AGENTS.md                 # AI agent entry point (redirects to CLAUDE.md)
 ├── CLAUDE.md                 # Comprehensive development guidelines and best practices

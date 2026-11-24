@@ -275,7 +275,7 @@ scripts/
 ├── check-node-version-ssot.sh    # npm run check:node-version — .nvmrc is the Node major; every engines.node and FROM node: must agree
 ├── check-npm-policy.sh           # npm run check:npm-policy — npm 12, registry-only installs, every install script decided (parsing: npm_policy.py)
 ├── gen-supabase-types.sh         # Regenerates apps/shared/supabase/types.ts; the only sanctioned route
-├── new-worktree.sh               # npm run worktree:new — worktree + npm ci + api build + hook check
+├── new-worktree.sh               # npm run worktree:new — worktree + npm ci (workspaces and tools/npm) + api build + hook check
 ├── run-shell-tests.sh            # npm run test:scripts:sh — finds and runs every *.test.sh, bounded
 ├── test_services.sh              # bash scripts/test_services.sh [API_URL] — curl probes of /health and the tRPC health/redis/supabase procedures
 └── tests/*.test.sh               # bash suites for the scripts above, sandboxed, npm stubbed

@@ -135,6 +135,7 @@ build_sandbox() {
 		done
 		printf '{"private":true,"dependencies":{"npm":"12.2.2"}}\n' >tools/npm/package.json
 		printf '{"lockfileVersion":3,"packages":{"":{},"node_modules/npm":{"version":"12.2.2","resolved":"https://registry.npmjs.org/npm/-/npm-12.2.2.tgz","integrity":"sha512-BBBB"},"node_modules/npm/node_modules/semver":{"version":"7.0.0","inBundle":true}}}\n' >tools/npm/package-lock.json
+		printf 'registry=https://registry.npmjs.org/\nallow-git=none\n' >tools/npm/.npmrc
 		printf 'FROM node:26-alpine\nRUN cd /app/tools/npm && npm ci\nRUN /app/tools/npm/node_modules/.bin/npm ci\n' >apps/api/Dockerfile
 		git add -- package-lock.json apps/api/package-lock.json apps/web/package-lock.json tools/npm/package-lock.json apps/api/Dockerfile
 	)
@@ -298,13 +299,70 @@ build_sandbox
 printf 'FROM node:26-alpine\nRUN npm install -g npm@12.2.2\n' >"$SANDBOX/tree/apps/api/Dockerfile"
 out="$(run_check)"
 rc=$?
-expect_fail "a Dockerfile that fetches npm by version" "apps/api/Dockerfile: fetches npm by version"
+expect_fail "a Dockerfile that fetches npm by version" "apps/api/Dockerfile: fetches npm itself"
 build_sandbox
 printf '{"installCommand":"npx -y npm@12.2.2 install"}\n' >"$SANDBOX/tree/vercel.json"
 (cd -- "$SANDBOX/tree" && git add -- vercel.json)
 out="$(run_check)"
 rc=$?
-expect_fail "a vercel.json that fetches npm by version" "vercel.json: fetches npm by version"
+expect_fail "a vercel.json that fetches npm by version" "vercel.json: fetches npm itself"
+
+for line in 'RUN npm install -g npm@latest' 'RUN npm i -g npm@^12' 'RUN npm install -g npm' 'RUN npx -y npm install'; do
+	build_sandbox
+	printf '%s\n' "$line" >>"$SANDBOX/tree/apps/api/Dockerfile"
+	out="$(run_check)"
+	rc=$?
+	expect_fail "a Dockerfile line '$line'" "apps/api/Dockerfile: fetches npm itself"
+done
+build_sandbox
+printf 'FROM node:26-alpine\nRUN npm ci\n' >"$SANDBOX/tree/apps/api/Dockerfile"
+out="$(run_check)"
+rc=$?
+expect_fail "a Dockerfile installing with the image's npm" "apps/api/Dockerfile: installs dependencies without the bootstrapped npm"
+build_sandbox
+printf 'RUN corepack prepare pnpm@9 --activate\n' >>"$SANDBOX/tree/apps/api/Dockerfile"
+if out="$(run_check)"; then ok "pnpm@9 is not mistaken for npm (control)"; else bad "pnpm@9 was flagged: $out"; fi
+build_sandbox
+printf 'allow-git=none\n' >"$SANDBOX/tree/tools/npm/.npmrc"
+out="$(run_check)"
+rc=$?
+expect_fail "a bootstrap .npmrc without the registry pin" "tools/npm: tools/npm/.npmrc does not set registry=https://registry.npmjs.org/"
+build_sandbox
+printf 'dangerously-allow-all-scripts=true\n' >>"$SANDBOX/tree/tools/npm/.npmrc"
+out="$(run_check)"
+rc=$?
+expect_fail "a bootstrap .npmrc that lets scripts run" "tools/npm: tools/npm/.npmrc sets dangerously-allow-all-scripts"
+build_sandbox
+printf '{"lockfileVersion":3,"packages":{"":{},"node_modules/npm":{"version":"12.2.2","resolved":"https://registry.npmjs.org/npm/-/npm-12.2.2.tgz","integrity":"sha512-B","hasInstallScript":true}}}\n' >"$SANDBOX/tree/tools/npm/package-lock.json"
+out="$(run_check)"
+rc=$?
+expect_fail "a bootstrap with an install script" "has entries with install scripts (node_modules/npm)"
+build_sandbox
+printf '{}\n' >"$SANDBOX/tree/apps/api/npm-shrinkwrap.json"
+(cd -- "$SANDBOX/tree" && git add -- apps/api/npm-shrinkwrap.json)
+out="$(run_check)"
+rc=$?
+expect_fail "a tracked npm-shrinkwrap.json" "apps/api/npm-shrinkwrap.json: npm-shrinkwrap.json is not allowed"
+build_sandbox
+printf '{"@evil:registry": "https://evil.example/"}\n' >"$SANDBOX/tree/apps/web/.stub-config.json"
+out="$(run_check)"
+rc=$?
+expect_fail "a scoped registry in the resolved config" "apps/web: npm resolves @evil:registry to 'https://evil.example/'"
+build_sandbox
+printf '{"replace-registry-host": "never"}\n' >"$SANDBOX/tree/apps/web/.stub-config.json"
+out="$(run_check)"
+rc=$?
+expect_fail "replace-registry-host resolved to never" "apps/web: npm resolves replace-registry-host to 'never'"
+build_sandbox
+printf '{"lockfileVersion":3,"packages":{"":{},"node_modules/a":{"resolved":["x"],"integrity":"sha512-A"}}}\n' >"$SANDBOX/tree/apps/api/package-lock.json"
+out="$(run_check)"
+rc=$?
+expect_fail "a lockfile entry whose resolved is not a string" "node_modules/a (resolved is not a string)"
+build_sandbox
+for d in . apps/api apps/web; do printf '{"engines":{"npm":">=11.0.0"}}\n' >"$SANDBOX/tree/$d/package.json"; done
+out="$(run_env STUB_NPM_VERSION=11.20.0)"
+rc=$?
+expect_fail "lowering every engines.npm below 12" "root engines.npm (>=11.0.0) is below npm 12"
 
 echo
 echo "check-npm-policy — an undecided install script fails and is named"
@@ -331,11 +389,11 @@ expect_fail "a workspace with no installed tree" "apps/api: no installed tree"
 build_sandbox
 out="$(run_env STUB_NPM_VERSION=11.20.0)"
 rc=$?
-expect_fail "npm 11.20.0" "npm 11.20.0 runs undecided install scripts; this repo needs npm 12.0.0"
+expect_fail "npm 11.20.0" "npm 11.20.0 is older than the npm 12.0.0 this repo requires"
 build_sandbox
 out="$(run_env STUB_NPM_VERSION=garbage)"
 rc=$?
-expect_fail "an unreadable npm version" "could not read npm version 'garbage'"
+expect_fail "an unreadable npm version" "could not compare npm version 'garbage'"
 for shape in 'not json' '{"something":"else"}' '{"allowScripts":{"esbuild":false}}' '{"allowScripts":{}}' '{"allowScripts":[{"changes":[]}]}' '{"allowScripts":[{"name":"","changes":[]}]}'; do
 	build_sandbox
 	printf '%s\n' "$shape" >"$SANDBOX/tree/apps/api/.stub-ls.json"

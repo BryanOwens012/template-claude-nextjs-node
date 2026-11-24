@@ -19,7 +19,7 @@ WORKDIR /app/apps/api
 RUN /app/tools/npm/node_modules/.bin/npm ci
 
 # Build TypeScript
-RUN npm run build
+RUN /app/tools/npm/node_modules/.bin/npm run build
 
 # Expose port
 EXPOSE 8000

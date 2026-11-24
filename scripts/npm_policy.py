@@ -17,7 +17,9 @@ Subcommands:
   sources <package-lock.json>       every entry comes from the registry with sha512 integrity,
                                     or is bundled inside one that does; prints the count examined
   bootstrap <dir> <minimum>         <dir>/package.json pins npm exactly, its lockfile agrees,
-                                    and that version is at or above minimum
+                                    that version is at or above minimum, no entry has an install
+                                    script, and <dir>/.npmrc pins the registry and sets nothing
+                                    that lets scripts run or changes where packages come from
   parse-ls                          stdin: `npm install-scripts ls --json`; prints one
                                     undecided package name per line
 
@@ -145,6 +147,11 @@ def cmd_config(npmrc):
             problems.append(f"{npmrc} sets {key}={text} but npm resolves it to {resolved.get(key)!r} there; a later setting overrides it")
     if resolved.get("dangerously-allow-all-scripts") is not False:
         problems.append(f"npm resolves dangerously-allow-all-scripts to {resolved.get('dangerously-allow-all-scripts')!r} there, so every install script could run")
+    for key, value in resolved.items():
+        if key.endswith(":registry"):
+            problems.append(f"npm resolves {key} to {value!r} there, which changes where packages are fetched from")
+    if resolved.get("replace-registry-host", "npmjs") != "npmjs":
+        problems.append(f"npm resolves replace-registry-host to {resolved.get('replace-registry-host')!r} there, which changes where packages are fetched from")
     allow = resolved.get("allow-scripts")
     if allow not in ([""], [], "", None):
         problems.append(f"npm resolves allow-scripts to {allow!r} there; decide install scripts in package.json allowScripts only")
@@ -192,6 +199,9 @@ def cmd_sources(lockfile):
             bad.append(f"{key} (unreadable entry)")
             continue
         resolved = entry.get("resolved")
+        if resolved is not None and not isinstance(resolved, str):
+            bad.append(f"{key} (resolved is not a string)")
+            continue
         if resolved is None:
             if not entry.get("inBundle"):
                 bad.append(f"{key} (no registry source)")
@@ -239,6 +249,35 @@ def cmd_bootstrap(directory, minimum):
         return 1
     if parse_version(pinned) < parse_version(minimum):
         print(f"{manifest} pins npm {pinned}, below the {minimum} that engines.npm requires")
+        return 1
+    scripted = [k for k, v in (load_json(lockfile).get("packages") or {}).items() if isinstance(v, dict) and v.get("hasInstallScript")]
+    if scripted:
+        print(f"{lockfile} has entries with install scripts ({', '.join(scripted[:3])}); the bootstrap is installed by an npm that would run them undecided")
+        return 1
+    npmrc = os.path.join(directory, ".npmrc")
+    problems = []
+    try:
+        with open(npmrc) as fh:
+            lines = fh.read().splitlines()
+    except OSError:
+        lines = []
+    committed = {}
+    for raw in lines:
+        line = raw.strip()
+        if not line or line[0] in "#;":
+            continue
+        name, _, value = line.partition("=")
+        key = norm_key(name)
+        if key in FORBIDDEN:
+            problems.append(f"{npmrc} sets {name.strip()}, which lets install scripts run without a decision")
+        elif key.endswith(":registry") or key == "replace-registry-host":
+            problems.append(f"{npmrc} sets {name.strip()}, which changes where packages are fetched from")
+        committed[key] = value.strip()
+    if committed.get("registry") != REGISTRY:
+        problems.append(f"{npmrc} does not set registry={REGISTRY}")
+    if problems:
+        for line in problems:
+            print(line)
         return 1
     print(pinned)
     return 0

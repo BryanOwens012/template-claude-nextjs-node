@@ -37,6 +37,9 @@ set -u
 
 PREFIX="check-npm-policy"
 BOOTSTRAP_DIR="tools/npm"
+# The policy's own floor, which no edit to engines.npm can lower: npm 12 is the first that skips
+# undecided install scripts and refuses git and URL dependencies by default.
+HARD_FLOOR_MAJOR=12
 
 fail() {
 	printf '%s: FAIL — %s\n' "$PREFIX" "$1" >&2
@@ -63,13 +66,14 @@ for var in $(compgen -e); do
 done
 
 MIN_NPM=$("${POLICY[@]}" min-npm package.json) || fail "$MIN_NPM"
+[ "${MIN_NPM%%.*}" -ge "$HARD_FLOOR_MAJOR" ] 2>/dev/null || fail "root engines.npm (>=$MIN_NPM) is below npm $HARD_FLOOR_MAJOR, the floor this policy depends on."
 
 npm_version=$(npm --version 2>/dev/null) || fail "npm is not on PATH."
 "${POLICY[@]}" version-ok "$npm_version" "$MIN_NPM"
 case $? in
 0) ;;
-1) fail "npm $npm_version runs undecided install scripts; this repo needs npm $MIN_NPM or later (npm install -g npm@${MIN_NPM%%.*}, after nvm install for the Node in .nvmrc)." ;;
-*) fail "could not read npm version '$npm_version'." ;;
+1) fail "npm $npm_version is older than the npm $MIN_NPM this repo requires; npm before 12 runs undecided install scripts (npm install -g npm@${MIN_NPM%%.*}, after nvm install for the Node in .nvmrc)." ;;
+*) fail "could not compare npm version '$npm_version' with the required '$MIN_NPM'." ;;
 esac
 
 problems=0
@@ -81,13 +85,24 @@ report() {
 
 # Deploy paths bootstrap npm from tools/npm rather than fetching it by version.
 if ! pinned=$("${POLICY[@]}" bootstrap "$BOOTSTRAP_DIR" "$MIN_NPM"); then
-	report "$BOOTSTRAP_DIR" "$pinned"
+	while IFS= read -r line; do
+		report "$BOOTSTRAP_DIR" "$line"
+	done <<<"$pinned"
 fi
+# Deploy files: never fetch npm itself (by version, tag, range or bare name), and any that
+# installs dependencies must do it with the bootstrapped npm.
 while IFS= read -r file; do
-	if grep -nE 'npm@[0-9]' -- "$file" >/dev/null 2>&1; then
-		report "$file" "fetches npm by version; bootstrap it from $BOOTSTRAP_DIR (its lockfile pins version and integrity)."
+	if grep -qE '(^|[^[:alnum:]_.-])npm@[^[:space:]]|npm +(install|i|add) +(-g|--global) +(npm|npm@)|npx +(-y +|--yes +)?npm([[:space:]@]|$)' -- "$file" 2>/dev/null; then
+		report "$file" "fetches npm itself; bootstrap it from $BOOTSTRAP_DIR (its lockfile pins version and integrity)."
 	fi
-done < <(git ls-files -- 'Dockerfile' '*/Dockerfile' 'Dockerfile.*' '*/Dockerfile.*' 'vercel.json' '*/vercel.json')
+	if grep -qE 'npm +(ci|install|i)([[:space:]"]|$)' -- "$file" 2>/dev/null && ! grep -qF -- "$BOOTSTRAP_DIR/node_modules/.bin/npm" "$file"; then
+		report "$file" "installs dependencies without the bootstrapped npm ($BOOTSTRAP_DIR/node_modules/.bin/npm)."
+	fi
+done < <(git ls-files -- 'Dockerfile' '*Dockerfile' 'Dockerfile.*' '*/Dockerfile.*' 'vercel.json' '*vercel.json')
+# npm prefers npm-shrinkwrap.json over package-lock.json, and this check reads only the latter.
+while IFS= read -r file; do
+	report "$file" "npm-shrinkwrap.json is not allowed; package-lock.json is the lockfile this policy checks."
+done < <(git ls-files -- 'npm-shrinkwrap.json' '*/npm-shrinkwrap.json')
 
 while IFS= read -r lockfile; do
 	dir=$(dirname -- "$lockfile")
