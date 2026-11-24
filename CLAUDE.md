@@ -13,7 +13,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 - **Frontend**:
   - Next.js 16+ (App Router, React Server Components)
   - React 19
-  - TypeScript 7+ (the native compiler, which has no JavaScript compiler API: type checking runs through the `tsc` CLI, which is how `next build` checks by default; never set `experimental.useTypeScriptCli: false`, and pick tooling that shells out to `tsc` rather than importing `typescript`)
+  - TypeScript 7+ (native compiler; no JavaScript compiler API, see Common Pitfalls)
   - Tailwind CSS v4 (CSS-first config: `@theme` in `globals.css`, no `tailwind.config.ts`; PostCSS plugin is `@tailwindcss/postcss`, autoprefixer not needed)
   - Radix UI, shadcn/ui
   - TanStack Query v5
@@ -607,6 +607,10 @@ curl -X POST http://localhost:8000/trpc/llm.traceExample \
 
 - ❌ Don't use outdated syntax (var, function declarations, etc.)
 - ❌ Don't ignore TypeScript errors or use `any` without justification
+- ❌ Don't import `typescript` in code or tooling: TypeScript 7 has no JavaScript compiler API, so type checking runs through the `tsc` CLI. Pick tools that shell out to `tsc`
+- ❌ Don't set `experimental.useTypeScriptCli: false` in `next.config.ts`: `next build` type-checks through `tsc` by default, and with the option off it exits under TypeScript 7
+- ❌ Don't expect Next's editor plugin (`plugins: [{ "name": "next" }]` in `apps/web/tsconfig.json`) to run under TypeScript 7, which ships no `tsserver`; keep the entry, since `next build` re-adds it
+- ❌ Don't add a workspace without adding its `tsc --noEmit` to the root `typecheck`; `scripts/tests/typecheck-coverage.test.sh` fails when a tsconfig stops covering its sentinel files
 - ❌ Don't forget to handle loading and error states
 - ❌ Don't forget cleanup in useEffect hooks
 - ❌ Don't mutate state directly (use immutable updates)
