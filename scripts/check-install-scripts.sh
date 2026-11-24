@@ -12,8 +12,10 @@
 # engine-strict=true in its .npmrc, so an older npm refuses to install instead. This check holds
 # all of it in the gauntlet:
 #   - every package.json declares engines.npm at MIN_NPM's major or later;
-#   - every workspace's .npmrc sets engine-strict=true and npm resolves it to true there, so the
-#     line cannot be dropped or overridden silently;
+#   - every workspace's .npmrc sets the REQUIRED settings below (engine-strict, and installs from
+#     the registry only), npm resolves each to that value there, and no committed .npmrc sets
+#     allow-scripts or dangerously-allow-all-scripts, which would let scripts run regardless;
+#   - every lockfile entry is fetched from the npm registry, or bundled inside one that is;
 #   - `npm install-scripts ls` lists nothing without a decision, naming any package that does.
 #
 # Three properties of `npm install-scripts ls` shape it, and each is a way it could otherwise
@@ -44,7 +46,7 @@ cd -- "$ROOT" || exit 1
 # itself. compgen -e lists exported names only, so no value is ever word-split.
 for var in $(compgen -e); do
 	case "$var" in
-	npm_config_* | NPM_CONFIG_*) unset "$var" ;;
+	npm_config_* | NPM_CONFIG_*) unset "$var" 2>/dev/null || true ;;
 	esac
 done
 
@@ -99,6 +101,72 @@ except Exception as exc:
     sys.exit(2)
 '
 
+# Reads `npm config ls --json` on stdin and the committed .npmrc named by argv[1]. Prints one
+# line per problem; exit 2 when the config output is unreadable, which fails the check.
+check_config='
+import json, re, sys
+REQUIRED = {
+    "engine-strict": True,
+    "allow-git": "none",
+    "allow-remote": "none",
+    "allow-file": "none",
+    "allow-directory": "none",
+}
+FORBIDDEN = ("allow-scripts", "dangerously-allow-all-scripts")
+try:
+    resolved = json.load(sys.stdin)
+    if not isinstance(resolved, dict):
+        raise TypeError("not an object")
+except Exception as exc:
+    print(f"npm config ls --json could not be read: {exc}")
+    sys.exit(2)
+path = sys.argv[1]
+try:
+    lines = open(path).read().splitlines()
+except OSError:
+    lines = []
+committed = {}
+for raw in lines:
+    line = raw.strip()
+    if not line or line[0] in "#;":
+        continue
+    key, _, value = line.partition("=")
+    committed[key.strip()] = value.strip()
+for key, want in REQUIRED.items():
+    text = "true" if want is True else want
+    if committed.get(key) != text:
+        print(f"{path} does not set {key}={text}")
+    elif resolved.get(key) != want:
+        print(f"{path} sets {key}={text} but npm resolves it to {resolved.get(key)!r} there; a later setting overrides it")
+for key in FORBIDDEN:
+    if key in committed:
+        print(f"{path} sets {key}, which lets install scripts run regardless of allowScripts")
+if resolved.get("dangerously-allow-all-scripts") not in (False, None):
+    print("npm resolves dangerously-allow-all-scripts to true there, so every install script would run")
+'
+
+# Reads the package-lock.json named by argv[1]. Exit 1, naming the entries, when one is fetched
+# from anywhere but the npm registry; an entry bundled inside a registry tarball has no
+# `resolved` of its own and is allowed. A workspace link or any other unresolved entry fails.
+check_sources='
+import json, sys
+REGISTRY = "https://registry.npmjs.org/"
+packages = json.load(open(sys.argv[1])).get("packages", {})
+bad = []
+for key, entry in packages.items():
+    if not key:
+        continue
+    resolved = entry.get("resolved")
+    if resolved is None:
+        if not entry.get("inBundle"):
+            bad.append(f"{key} (no registry source)")
+    elif not resolved.startswith(REGISTRY):
+        bad.append(f"{key} ({resolved})")
+if bad:
+    print(f"{sys.argv[1]} installs from outside the npm registry: " + "; ".join(bad[:5]) + (" ..." if len(bad) > 5 else ""))
+    sys.exit(1)
+'
+
 problems=0
 examined=0
 while IFS= read -r lockfile; do
@@ -119,18 +187,25 @@ sys.exit(0 if m and int(m.group(1)) >= int(sys.argv[2]) else 1)
 		problems=$((problems + 1))
 	fi
 
-	# Both halves: the committed file must carry the line, so a user-level or environment
-	# setting cannot stand in for it on one machine, and npm must resolve it to true there,
-	# so a later line in the file cannot switch it back off.
-	if ! grep -qxE '[[:space:]]*engine-strict[[:space:]]*=[[:space:]]*true[[:space:]]*' -- "$dir/.npmrc" 2>/dev/null; then
-		printf '%s: %s: %s/.npmrc does not set engine-strict=true, so an npm older than %s would install there and run undecided install scripts.\n' "$PREFIX" "$label" "$dir" "$MIN_NPM" >&2
+	# Each REQUIRED setting must be committed in the workspace's .npmrc, so a user-level or
+	# environment value cannot stand in for it on one machine, and npm must resolve it to that
+	# value there, so a later line cannot switch it off. A committed allow-scripts or
+	# dangerously-allow-all-scripts line fails outright, and the latter must resolve to false.
+	config_json=$(cd -- "$dir" && npm config ls --json </dev/null 2>/dev/null) || config_json=""
+	if ! config_problems=$(printf '%s' "$config_json" | python3 -c "$check_config" "$dir/.npmrc"); then
+		printf '%s: %s: %s\n' "$PREFIX" "$label" "${config_problems:-npm config ls --json could not be read}" >&2
 		problems=$((problems + 1))
-	else
-		strict=$(cd -- "$dir" && npm config get engine-strict </dev/null 2>/dev/null)
-		if [ "$strict" != "true" ]; then
-			printf '%s: %s: %s/.npmrc sets engine-strict=true but npm resolves it to %s there; a later setting overrides it.\n' "$PREFIX" "$label" "$dir" "${strict:-unset}" >&2
-			problems=$((problems + 1))
-		fi
+	elif [ -n "$config_problems" ]; then
+		while IFS= read -r line; do
+			printf '%s: %s: %s\n' "$PREFIX" "$label" "$line" >&2
+		done <<<"$config_problems"
+		problems=$((problems + 1))
+	fi
+
+	# Every lockfile entry comes from the registry, or ships inside a registry tarball.
+	if ! source_problems=$(python3 -c "$check_sources" "$lockfile" 2>&1); then
+		printf '%s: %s: %s\n' "$PREFIX" "$label" "$source_problems" >&2
+		problems=$((problems + 1))
 	fi
 
 	if [ ! -f "$dir/node_modules/.package-lock.json" ]; then
@@ -170,4 +245,4 @@ if [ "$problems" -gt 0 ]; then
 	exit 1
 fi
 
-printf '%s: OK — %d workspace(s) require npm %s with engine-strict, and every install script has a decision in allowScripts.\n' "$PREFIX" "$examined" "${MIN_NPM%%.*}"
+printf '%s: OK — %d workspace(s) require npm %s, install from the registry only, and every install script has a decision in allowScripts.\n' "$PREFIX" "$examined" "${MIN_NPM%%.*}"

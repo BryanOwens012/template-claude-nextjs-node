@@ -59,11 +59,24 @@ case "${1:-}" in
 	printf '%s\n' "${STUB_NPM_VERSION:-12.2.2}"
 	;;
 config)
-	if [ "${2:-}" = "get" ] && [ "${3:-}" = "engine-strict" ]; then
-		# Real npm reads an exported npm_config_* ahead of the project .npmrc; so does the stub.
-		if [ -n "${npm_config_engine_strict:-}" ]; then
-			printf '%s\n' "$npm_config_engine_strict"
-		elif [ -f .stub-strict ]; then cat .stub-strict; else printf 'true\n'; fi
+	if [ "${2:-}" = "ls" ] && [ "${3:-}" = "--json" ]; then
+		[ -f .stub-config-fail ] && exit 1
+		# Resolved config: secure defaults, then this directory's overrides, then an exported
+		# npm_config_* — real npm reads the environment ahead of the project .npmrc; so does this.
+		python3 -c '
+import json, os
+cfg = {"engine-strict": True, "dangerously-allow-all-scripts": False, "allow-git": "none",
+       "allow-remote": "none", "allow-file": "none", "allow-directory": "none"}
+if os.path.exists(".stub-strict"):
+    text = open(".stub-strict").read().strip()
+    if text: cfg["engine-strict"] = text == "true"
+    else: cfg.pop("engine-strict")
+if os.path.exists(".stub-config.json"):
+    cfg.update(json.load(open(".stub-config.json")))
+env = os.environ.get("npm_config_engine_strict")
+if env: cfg["engine-strict"] = env == "true"
+print(json.dumps(cfg))
+'
 		exit 0
 	fi
 	exit 1
@@ -94,7 +107,7 @@ build_sandbox() {
 		git init -q .
 		for d in . apps/api apps/web; do
 			printf '{}\n' >"$d/package-lock.json"
-			printf 'engine-strict=true\n' >"$d/.npmrc"
+			printf 'engine-strict=true\nallow-git=none\nallow-remote=none\nallow-file=none\nallow-directory=none\n' >"$d/.npmrc"
 			printf '{"engines":{"node":">=26.0.0","npm":">=12.0.0"}}\n' >"$d/package.json"
 			mkdir -p "$d/node_modules"
 			printf '{}\n' >"$d/node_modules/.package-lock.json"
@@ -124,12 +137,12 @@ if out="$(run_check)"; then bad "engine-strict=false passed"; else ok "an .npmrc
 build_sandbox
 printf 'false\n' >"$SANDBOX/tree/apps/api/.stub-strict"
 if out="$(run_check)"; then bad "a line npm resolves to false passed"; else ok "an .npmrc line that npm resolves to false fails"; fi
-case "$out" in *"apps/api: apps/api/.npmrc sets engine-strict=true but npm resolves it to false"*) ok "says a later setting overrides it" ;; *) bad "wrong reason: $out" ;; esac
+case "$out" in *"apps/api: apps/api/.npmrc sets engine-strict=true but npm resolves it to False"*) ok "says a later setting overrides it" ;; *) bad "wrong reason: $out" ;; esac
 
 build_sandbox
 : >"$SANDBOX/tree/.stub-strict"
 if out="$(run_check)"; then bad "an unresolved engine-strict passed"; else ok "a setting npm resolves to nothing fails"; fi
-case "$out" in *"(root): ./.npmrc sets engine-strict=true but npm resolves it to unset"*) ok "reports the root workspace as unset" ;; *) bad "wrong reason: $out" ;; esac
+case "$out" in *"(root): ./.npmrc sets engine-strict=true but npm resolves it to None"*) ok "reports the root workspace as unset" ;; *) bad "wrong reason: $out" ;; esac
 
 # The regression this guards: `npm run` exports the root's npm_config_engine_strict,
 # which would otherwise make every workspace report the root's value instead of its own.
@@ -140,7 +153,53 @@ if out="$(cd -- "$SANDBOX/tree" && npm_config_engine_strict=true bash scripts/ch
 else
 	ok "an inherited npm_config_* does not mask a workspace's own value"
 fi
-case "$out" in *"apps/web: apps/web/.npmrc sets engine-strict=true but npm resolves it to false"*) ok "reads the web workspace's own value" ;; *) bad "wrong reason: $out" ;; esac
+case "$out" in *"apps/web: apps/web/.npmrc sets engine-strict=true but npm resolves it to False"*) ok "reads the web workspace's own value" ;; *) bad "wrong reason: $out" ;; esac
+
+echo
+echo "check-install-scripts — settings that would let scripts or non-registry code in fail"
+build_sandbox
+printf 'dangerously-allow-all-scripts=true\n' >>"$SANDBOX/tree/apps/web/.npmrc"
+if out="$(run_check)"; then bad "a committed dangerously-allow-all-scripts passed"; else ok "a committed dangerously-allow-all-scripts line fails"; fi
+case "$out" in *"apps/web: apps/web/.npmrc sets dangerously-allow-all-scripts"*) ok "names the forbidden line" ;; *) bad "wrong reason: $out" ;; esac
+
+build_sandbox
+printf 'allow-scripts=esbuild\n' >>"$SANDBOX/tree/apps/api/.npmrc"
+if out="$(run_check)"; then bad "a committed allow-scripts passed"; else ok "a committed allow-scripts line fails"; fi
+case "$out" in *"apps/api: apps/api/.npmrc sets allow-scripts"*) ok "names the allow-scripts line" ;; *) bad "wrong reason: $out" ;; esac
+
+build_sandbox
+printf '{"dangerously-allow-all-scripts": true}\n' >"$SANDBOX/tree/apps/api/.stub-config.json"
+if out="$(run_check)"; then bad "dangerously-allow-all-scripts resolving to true passed"; else ok "dangerously-allow-all-scripts resolving to true fails"; fi
+case "$out" in *"apps/api: npm resolves dangerously-allow-all-scripts to true"*) ok "says npm resolves it to true" ;; *) bad "wrong reason: $out" ;; esac
+
+build_sandbox
+printf 'engine-strict=true\nallow-remote=none\nallow-file=none\nallow-directory=none\n' >"$SANDBOX/tree/apps/web/.npmrc"
+if out="$(run_check)"; then bad "an .npmrc without allow-git=none passed"; else ok "an .npmrc without allow-git=none fails"; fi
+case "$out" in *"apps/web: apps/web/.npmrc does not set allow-git=none"*) ok "names the missing setting" ;; *) bad "wrong reason: $out" ;; esac
+
+build_sandbox
+printf '{"allow-file": "all"}\n' >"$SANDBOX/tree/apps/api/.stub-config.json"
+if out="$(run_check)"; then bad "allow-file resolving to all passed"; else ok "a source setting npm resolves to all fails"; fi
+
+build_sandbox
+: >"$SANDBOX/tree/apps/api/.stub-config-fail"
+if out="$(run_check)"; then bad "unreadable npm config passed"; else ok "an npm config ls that fails fails the check"; fi
+case "$out" in *"apps/api: npm config ls --json could not be read"*) ok "says the config could not be read" ;; *) bad "wrong reason: $out" ;; esac
+
+echo
+echo "check-install-scripts — every lockfile entry comes from the registry"
+build_sandbox
+printf '{"packages":{"":{},"node_modules/a":{"resolved":"https://registry.npmjs.org/a/-/a-1.0.0.tgz"},"node_modules/a/node_modules/b":{"inBundle":true}}}\n' >"$SANDBOX/tree/apps/api/package-lock.json"
+if out="$(run_check)"; then ok "registry entries and bundled entries pass (control)"; else bad "a registry-only lockfile failed: $out"; fi
+
+build_sandbox
+printf '{"packages":{"":{},"node_modules/a":{"resolved":"git+ssh://git@github.com/evil/a.git#abc"}}}\n' >"$SANDBOX/tree/apps/api/package-lock.json"
+if out="$(run_check)"; then bad "a git dependency passed"; else ok "a git dependency in the lockfile fails"; fi
+case "$out" in *"apps/api: apps/api/package-lock.json installs from outside the npm registry: node_modules/a (git+ssh://"*) ok "names the entry and its source" ;; *) bad "wrong reason: $out" ;; esac
+
+build_sandbox
+printf '{"packages":{"":{},"node_modules/a":{"link":true}}}\n' >"$SANDBOX/tree/apps/web/package-lock.json"
+if out="$(run_check)"; then bad "a linked dependency passed"; else ok "a link or other unresolved entry fails"; fi
 
 build_sandbox
 printf '{"engines":{"node":">=26.0.0"}}\n' >"$SANDBOX/tree/apps/api/package.json"
@@ -194,6 +253,10 @@ build_sandbox
 printf '{"allowScripts":{"esbuild":false}}\n' >"$SANDBOX/tree/apps/api/.stub-ls.json"
 if out="$(run_check)"; then bad "a non-list allowScripts passed"; else ok "an allowScripts that is not a list fails"; fi
 case "$out" in *"apps/api: could not read"*) ok "rejects it as unreadable rather than iterating its keys" ;; *) bad "wrong reason: $out" ;; esac
+
+build_sandbox
+printf '{"allowScripts":{}}\n' >"$SANDBOX/tree/apps/api/.stub-ls.json"
+if out="$(run_check)"; then bad "an empty non-list allowScripts read as nothing unreviewed"; else ok "an empty non-list allowScripts fails"; fi
 
 build_sandbox
 printf '{"allowScripts":[{"changes":[]}]}\n' >"$SANDBOX/tree/apps/api/.stub-ls.json"

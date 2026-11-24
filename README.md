@@ -128,7 +128,7 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 ├── .husky/                   # pre-commit + lockfile-sync hooks (post-merge/rewrite/checkout/commit)
 ├── .claude/gauntlet.json     # Declared pre-merge quality gate
 ├── .nvmrc                    # Node major; engines.node and Dockerfile tags must match
-├── .npmrc                    # engine-strict=true (each workspace has the same file)
+├── .npmrc                    # engine-strict=true, registry-only installs (each workspace has the same file)
 ├── .mcp.json                 # MCP servers for AI agents (Vercel, Railway, Supabase read-only)
 ├── AGENTS.md                 # AI agent entry point (redirects to CLAUDE.md)
 ├── CLAUDE.md                 # Comprehensive development guidelines and best practices
@@ -526,7 +526,7 @@ npm run test:api                                 # apps/api unit tests
 .editorconfig             # Shell script formatting standards
 biome.json               # JS/TS formatting and linting rules
 .nvmrc                   # Node major; engines.node and Dockerfile FROM node: must agree
-.npmrc                   # engine-strict=true; an npm older than engines.npm refuses to install
+.npmrc                   # engine-strict=true; registry-only installs (allow-git/remote/file/directory=none)
 .prettierrc              # Markdown formatter configuration
 .sql-formatter.json      # PostgreSQL SQL formatting
 .husky/                  # pre-commit + the four lockfile-sync hooks
