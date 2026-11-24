@@ -5,17 +5,18 @@ WORKDIR /app
 # Copy shared directory (needed for TypeScript compilation of shared types)
 COPY apps/shared ./apps/shared
 
+# The npm that installs dependencies comes from tools/npm, whose lockfile pins its version and
+# sha512 integrity: the base image's own npm may predate engines.npm, which engine-strict refuses.
+COPY tools/npm ./tools/npm
+RUN cd /app/tools/npm && npm ci --no-audit --no-fund
+
 # Copy API application
 COPY apps/api ./apps/api
 
 WORKDIR /app/apps/api
 
-# The image bundles an npm older than 12, which engines.npm and engine-strict refuse.
-# npm 12 skips dependency install scripts that package.json allowScripts has no decision for.
-RUN npm install -g npm@12.2.2
-
-# Install dependencies
-RUN npm ci
+# Install dependencies with the bootstrapped npm
+RUN /app/tools/npm/node_modules/.bin/npm ci
 
 # Build TypeScript
 RUN npm run build

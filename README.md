@@ -119,7 +119,7 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 │   ├── install-changed-lockfiles.sh  # npm install per changed lockfile (shared by the sync hooks)
 │   ├── check-hooks-installed.sh      # npm run check:hooks
 │   ├── check-node-version-ssot.sh    # npm run check:node-version
-│   ├── check-install-scripts.sh      # npm run check:install-scripts
+│   ├── check-npm-policy.sh           # npm run check:npm-policy
 │   ├── gen-supabase-types.sh         # Regenerate Supabase types (see Database Migrations)
 │   ├── new-worktree.sh               # npm run worktree:new
 │   ├── run-shell-tests.sh            # npm run test:scripts:sh
@@ -144,7 +144,7 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 ### Prerequisites
 
 - Node.js 26 (`nvm install` reads `.nvmrc`) and npm 12 or later (`npm install -g npm@12`); with an older npm, installs fail with `EBADENGINE`
-- An install that ends by listing skipped install scripts means a dependency's script has no decision yet; `npm run check:install-scripts` names it and the command that records one
+- An install that ends by listing skipped install scripts means a dependency's script has no decision yet; `npm run check:npm-policy` names it and the command that records one
 - npm or yarn
 - [Supabase account](https://supabase.com) (free tier available)
 
@@ -517,7 +517,7 @@ npm run lint:check
 # Hooks, worktrees, and shell tests
 npm run check:hooks                              # fail if git would run no hooks here
 npm run check:node-version                       # fail if any engines.node / FROM node: disagrees with .nvmrc
-npm run check:install-scripts                    # fail if a dependency install script has no allowScripts decision
+npm run check:npm-policy                         # fail on npm < 12, a non-registry source, or an undecided install script
 npm run worktree:new -- ../repo.feat bryan/feat  # provisioned worktree, hooks verified
 npm run test:scripts:sh                          # every scripts/**/*.test.sh, discovered by find
 npm run test:api                                 # apps/api unit tests
