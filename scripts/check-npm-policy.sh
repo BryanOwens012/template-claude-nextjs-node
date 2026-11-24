@@ -49,7 +49,7 @@ fail() {
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || fail "not inside a git working tree."
 cd -- "$ROOT" || exit 1
 command -v python3 >/dev/null 2>&1 || fail "python3 is not on PATH; it parses npm output here."
-POLICY=(python3 -B "$ROOT/scripts/npm_policy.py") # -B: importing npm_policy_deploy writes no __pycache__
+POLICY=(python3 "$ROOT/scripts/npm_policy.py")
 [ -f "$ROOT/scripts/npm_policy.py" ] || fail "scripts/npm_policy.py is missing."
 
 # The environment first, while the inherited npm_config_* are still visible.
@@ -89,7 +89,7 @@ if ! pinned=$("${POLICY[@]}" bootstrap "$BOOTSTRAP_DIR" "$MIN_NPM"); then
 		report "$BOOTSTRAP_DIR" "$line"
 	done <<<"$pinned"
 fi
-if ! deploy_problems=$(git ls-files -z | "${POLICY[@]}" deploy); then
+if ! deploy_problems=$(git ls-files -z | python3 -I "$ROOT/scripts/npm_policy_deploy.py"); then
 	while IFS= read -r line; do
 		report "deploy" "$line"
 	done <<<"$deploy_problems"

@@ -21,9 +21,6 @@ Subcommands:
                                     script, and <dir>/.npmrc holds exactly BOOTSTRAP_NPMRC
   parse-ls                          stdin: `npm install-scripts ls --json`; prints one
                                     undecided package name per line
-  deploy                            stdin: NUL-separated tracked paths (`git ls-files -z`); deploy
-                                    files may use npm only in the shapes npm_policy_deploy.py
-                                    allows (see its docstring)
 
 Standard library only.
 """
@@ -198,19 +195,6 @@ def cmd_env():
     return 1 if problems else 0
 
 
-def cmd_deploy():
-    """The deploy-file rule lives in npm_policy_deploy.py; this is its entry point."""
-    import npm_policy_deploy
-
-    problems, checked = npm_policy_deploy.run(sys.stdin.read())
-    for line in problems:
-        print(line)
-    if not checked:
-        print("found no deploy file to check (no Dockerfile, Containerfile or vercel.json is tracked)")
-        return 1
-    return 1 if problems else 0
-
-
 def cmd_sources(lockfile):
     try:
         data = load_json(lockfile)
@@ -349,7 +333,6 @@ def main(argv):
         "sources": (cmd_sources, 1),
         "bootstrap": (cmd_bootstrap, 2),
         "parse-ls": (cmd_parse_ls, 0),
-        "deploy": (cmd_deploy, 0),
     }
     if len(argv) < 2 or argv[1] not in commands or len(argv) - 2 != commands[argv[1]][1]:
         print(f"usage: npm_policy.py {{{'|'.join(commands)}}} ...", file=sys.stderr)

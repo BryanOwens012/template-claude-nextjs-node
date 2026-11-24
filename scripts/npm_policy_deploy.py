@@ -1,97 +1,93 @@
 #!/usr/bin/env python3
-"""npm_policy_deploy.py — the deploy-file half of check-npm-policy.sh, as an allowlist.
+"""npm_policy_deploy.py — the deploy-file half of check-npm-policy.sh, as a closed allowlist.
 
 The rule (CLAUDE.md, "npm 12 is required"): deploys install dependencies only with the npm
 bootstrapped from tools/npm, never fetch npm itself, and never change npm's configuration. A
-deny-list of bad spellings cannot hold that, since a shell has endless ways to spell a command,
-so this module allows a short list of known command shapes and refuses everything else that
-touches npm. Unknown shapes fail closed by construction.
+shell has more ways to spell a program than any deny-list can name (globs, decoders piped into
+a shell, interpreters, wrappers), so every command a deploy file runs must be one of the
+ALLOWED_SHAPES, whether or not it mentions npm. Anything else fails, and the fix is to add the
+new shape here, where it is reviewed.
 
-A deploy command (each RUN, CMD, ENTRYPOINT, HEALTHCHECK and ONBUILD in a Dockerfile, each
-command in vercel.json, each `start` string in .railway/railway.ts) is refused when it uses a
-dynamic construct ($, backticks, a heredoc, eval, source, exec, xargs, a newline) or starts a
-nested shell. Otherwise it passes when it mentions no package manager and no npm configuration,
-or is a chain of `&&`-joined simple commands, grouped at most by parentheses, each of which
-mentions none or is one of the ALLOWED_SHAPES. ENV and ARG may not set npm configuration, COPY
-and ADD may not name an npmrc, SHELL is refused, and vercel.json env may not set npm
-configuration.
+Read: each RUN, CMD, ENTRYPOINT, HEALTHCHECK CMD and ONBUILD in any Dockerfile or Containerfile;
+installCommand, buildCommand, devCommand and ignoreCommand in vercel.json (installCommand is
+required); `start` in .railway/railway.ts and the Dockerfile its dockerfilePath names. A command
+is `&&`-joined simple commands, grouped at most by parentheses. Also refused: $, backticks,
+heredocs and newlines in a command; SHELL; an escape parser directive; COPY or ADD naming an
+npmrc; ADD from a URL; ENV or ARG setting npm_config_*, NPM_*, PATH, HOME, XDG_CONFIG_HOME,
+NODE_OPTIONS or NODE_PATH; npm configuration in vercel.json env; a railway.ts that mentions a
+package manager, sets another command key or builder, or sets start or dockerfilePath to
+anything but a plain string (start may also be encodeFunctionScript('<path>')).
 
-This holds deploy files to a reviewable shape; it is not a sandbox. A build step that runs a
-committed script or an interpreter (`node build.js`, `sh build.sh`) runs whatever that file
-does, and that file is reviewed as code, not by this check.
+Not covered: what a program allowed here does when it runs code the repo commits — the body of
+an `npm run <script>` in package.json, the script `node <script>` runs, and a base image's own
+contents. Those are reviewed as code.
 
-Standard library only. Called through `npm_policy.py deploy`, with NUL-separated tracked paths
-(`git ls-files -z`) on stdin.
+Standard library only. Usage: `git ls-files -z | python3 -I npm_policy_deploy.py`; exits 0 when
+clean, 1 with one problem per line, never 0 when no deploy file was found.
 """
 
 import json
 import os
 import re
 import shlex
+import sys
 
 BOOTSTRAP_DIR = "tools/npm"
-BOOTSTRAP_BIN = "tools/npm/node_modules/.bin/npm"
-# Words that mean a command touches npm, another package manager, or npm configuration.
-SENSITIVE = re.compile(
-    r"(?<![A-Za-z0-9_.-])(npm|npx|pnpm|yarn|bun|corepack)(?![A-Za-z0-9_-])|npm_config|\.npmrc",
-    re.IGNORECASE,
-)
-# Constructs that let a command compute what it runs; a deploy command must be readable as text.
-DYNAMIC = re.compile(r"[$`]|<<|(?<![A-Za-z0-9_-])(eval|source|exec|xargs)(?![A-Za-z0-9_-])")
-SHELLS = {"sh", "bash", "zsh", "dash", "ash", "ksh"}
+BOOTSTRAP_BIN = BOOTSTRAP_DIR + "/node_modules/.bin/npm"
 CI_FLAGS = {"--no-audit", "--no-fund"}
+NODE_FLAGS = {"--expose-gc", "--enable-source-maps"}
 SCRIPT_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9:._-]*")
+SCRIPT_PATH = re.compile(r"[A-Za-z0-9_./-]+\.(?:js|mjs|cjs)")
 ALLOWED_SHAPES = (
-    f"`cd <dir>/{BOOTSTRAP_DIR} && npm ci` (the bootstrap), "
-    f"`<dir>/{BOOTSTRAP_BIN} ci` or `... run <script>`, `npm run <script>`, `npx tsc`"
+    "`cd <dir>`, `npm ci` right after `cd <root>/tools/npm`, `<root>/tools/npm/node_modules/.bin/npm ci` "
+    "or `... run <script>`, `npm run <script>`, `npx tsc`, `node [--expose-gc] <file>.js`"
 )
+# Package-manager names as whole words; a hyphenated name such as an image `function-bun` is not one.
+SENSITIVE = re.compile(r"(?<![\w-])(npm|npx|pnpm|yarn|bun|corepack)(?![\w-])|npmrc", re.IGNORECASE)
+DYNAMIC = re.compile(r"[$`\n\r]|<<")
+# Variables that change which programs run or which config npm reads.
+LOADER_VARS = re.compile(r"(?i)^(npm_config_\w*|npm_\w*|path|home|xdg_config_home|node_options|node_path)$")
 COMMAND_INSTRUCTIONS = {"RUN", "CMD", "ENTRYPOINT"}
 VERCEL_COMMANDS = ("installCommand", "buildCommand", "devCommand", "ignoreCommand")
+JS_STRING = r"'(?:[^'\\\n]|\\.)*'|\"(?:[^\"\\\n]|\\.)*\""
 
 
-def is_bootstrap_bin(word):
-    return word == BOOTSTRAP_BIN or word.endswith("/" + BOOTSTRAP_BIN)
-
-
-def is_bootstrap_dir(word):
+def is_root_path(word, roots, suffix):
+    """True when word is <root>/<suffix> for an allowed root: any run of ../ (vercel.json
+    commands run inside an app directory) or a Dockerfile's first WORKDIR."""
     path = word.rstrip("/")
-    return path == BOOTSTRAP_DIR or path.endswith("/" + BOOTSTRAP_DIR)
-
-
-def starts_nested_shell(tokens):
-    """A shell at command position (first word, or after a separator) or given an option."""
-    for i, token in enumerate(tokens):
-        if os.path.basename(token) not in SHELLS:
-            continue
-        at_start = i == 0 or (tokens[i - 1] and set(tokens[i - 1]) <= set("();&|"))
-        if at_start or (i + 1 < len(tokens) and tokens[i + 1].startswith("-")):
-            return True
-    return False
-
-
-def is_allowed_part(words, in_bootstrap_dir):
-    """True when one simple command is an allowed npm shape (or touches no npm at all)."""
-    if not SENSITIVE.search(" ".join(words)):
+    if re.fullmatch(r"(?:\.\./)*" + re.escape(suffix), path):
         return True
+    return any(path == f"{root}/{suffix}" for root in roots)
+
+
+def find_part_problem(words, in_bootstrap_dir, roots):
+    """None when one simple command is an allowed shape, else why it is not."""
     prog, args = words[0], words[1:]
-    if prog == "npm" and in_bootstrap_dir and args[:1] == ["ci"] and set(args[1:]) <= CI_FLAGS:
-        return True
-    if is_bootstrap_bin(prog):
-        if args[:1] == ["ci"] and set(args[1:]) <= CI_FLAGS:
-            return True
-        if len(args) == 2 and args[0] == "run" and SCRIPT_NAME.fullmatch(args[1]):
-            return True
-    if prog == "npm" and len(args) == 2 and args[0] == "run" and SCRIPT_NAME.fullmatch(args[1]):
-        return True
-    return words == ["npx", "tsc"]
+    allowed = False
+    if prog == "cd":
+        allowed = len(args) == 1 and not args[0].startswith("-")
+    elif prog == "npm":
+        allowed = (in_bootstrap_dir and args[:1] == ["ci"] and set(args[1:]) <= CI_FLAGS) or (
+            len(args) == 2 and args[0] == "run" and SCRIPT_NAME.fullmatch(args[1]) is not None
+        )
+    elif is_root_path(prog, roots, BOOTSTRAP_BIN):
+        allowed = (args[:1] == ["ci"] and set(args[1:]) <= CI_FLAGS) or (
+            len(args) == 2 and args[0] == "run" and SCRIPT_NAME.fullmatch(args[1]) is not None
+        )
+    elif prog == "npx":
+        allowed = args == ["tsc"]
+    elif prog == "node":
+        flags = [a for a in args if a.startswith("-")]
+        files = [a for a in args if not a.startswith("-")]
+        allowed = set(flags) <= NODE_FLAGS and len(files) == 1 and args[-1] == files[0] and SCRIPT_PATH.fullmatch(files[0]) is not None
+    if allowed:
+        return None
+    return f"runs `{' '.join(words)}`, which is not an allowed deploy command (allowed: {ALLOWED_SHAPES}; add a new shape to scripts/npm_policy_deploy.py)"
 
 
-def check_words(tokens, where):
+def check_words(tokens, where, roots):
     """Judge a tokenized command (shell tokens, or an exec-form word list)."""
-    if starts_nested_shell(tokens):
-        return [f"{where} runs a nested shell; deploy commands must be readable as written"]
-    if not SENSITIVE.search(" ".join(tokens)):
-        return []
     problems = []
     part, in_bootstrap_dir = [], False
 
@@ -99,10 +95,11 @@ def check_words(tokens, where):
         nonlocal in_bootstrap_dir
         if not part:
             return
-        if part[0] == "cd" and len(part) == 2:
-            in_bootstrap_dir = is_bootstrap_dir(part[1])
-        elif not is_allowed_part(part, in_bootstrap_dir):
-            problems.append(f"{where} runs `{' '.join(part)}`, which is not an allowed npm command (allowed: {ALLOWED_SHAPES})")
+        problem = find_part_problem(part, in_bootstrap_dir, roots)
+        if problem:
+            problems.append(f"{where} {problem}")
+        if part[0] == "cd":
+            in_bootstrap_dir = len(part) == 2 and is_root_path(part[1], roots, BOOTSTRAP_DIR)
         part.clear()
 
     for token in tokens:
@@ -112,19 +109,17 @@ def check_words(tokens, where):
             close_part()
             in_bootstrap_dir = False
         elif token and set(token) <= set("();&|<>"):
-            return [f"{where} joins npm commands with `{token}`; only `&&` is allowed there"]
-        elif not part and "=" in token and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", token):
-            return [f"{where} sets a variable inline in an npm command; set npm configuration only in .npmrc"]
+            return [f"{where} joins commands with `{token}`; only `&&` is allowed"]
         else:
             part.append(token)
     close_part()
     return problems
 
 
-def check_command(text, where):
+def check_command(text, where, roots=()):
     """Judge one shell-form command string."""
-    if DYNAMIC.search(text) or "\n" in text or "\r" in text:
-        return [f"{where} uses a dynamic shell construct ($, backticks, a heredoc, eval, source, exec, xargs or a newline); deploy commands must be readable as written"]
+    if DYNAMIC.search(text):
+        return [f"{where} uses a dynamic shell construct ($, backticks, a heredoc or a newline); deploy commands must be readable as written"]
     try:
         lexer = shlex.shlex(text, posix=True, punctuation_chars=True)
         lexer.whitespace_split = True
@@ -132,12 +127,12 @@ def check_command(text, where):
         tokens = list(lexer)
     except ValueError as exc:
         return [f"{where} could not be parsed as a shell command ({exc})"]
-    return check_words(tokens, where)
+    return check_words(tokens, where, roots)
 
 
 def iter_dockerfile_instructions(text):
-    """(line number, INSTRUCTION, arguments), joining continuations and dropping comment lines
-    inside them, as Docker does."""
+    """(line number, INSTRUCTION, arguments). A trailing backslash continues the instruction,
+    and blank and comment lines inside a continuation are skipped, as Docker does."""
     lines = text.splitlines()
     i = 0
     while i < len(lines):
@@ -148,17 +143,21 @@ def iter_dockerfile_instructions(text):
         while line.rstrip().endswith("\\") and i < len(lines):
             nxt = lines[i]
             i += 1
-            if nxt.strip().startswith("#"):
-                continue
+            if not nxt.strip() or nxt.strip().startswith("#"):
+                continue  # the line still ends with a backslash, so the continuation goes on
             line = line.rstrip()[:-1] + " " + nxt
+        if line.rstrip().endswith("\\"):
+            line = line.rstrip()[:-1]
         head = line.strip().split(None, 1)
         yield start, head[0].upper(), (head[1].strip() if len(head) > 1 else "")
 
 
-def check_dockerfile_instruction(instruction, rest, where):
+def check_dockerfile_instruction(instruction, rest, where, roots):
     if instruction == "ONBUILD":
         inner = rest.split(None, 1)
-        return check_dockerfile_instruction(inner[0].upper(), inner[1] if len(inner) > 1 else "", f"{where} ONBUILD") if inner else []
+        if not inner:
+            return []
+        return check_dockerfile_instruction(inner[0].upper(), inner[1] if len(inner) > 1 else "", f"{where} ONBUILD", roots)
     if instruction == "SHELL":
         return [f"{where} SHELL changes how every RUN is interpreted; deploy files may not set it"]
     if instruction == "HEALTHCHECK":
@@ -166,36 +165,48 @@ def check_dockerfile_instruction(instruction, rest, where):
         while words and words[0].startswith("--"):
             words = words[1].split(None, 1) if len(words) > 1 else []
         if words and words[0].upper() == "CMD":
-            return check_dockerfile_instruction("CMD", words[1] if len(words) > 1 else "", where)
+            return check_dockerfile_instruction("CMD", words[1] if len(words) > 1 else "", where, roots)
         return []
     if instruction in ("ENV", "ARG"):
-        if re.search(r"npm_config_|npmrc", rest, re.IGNORECASE):
-            names = re.findall(r"(?i)\b(npm_config_[A-Za-z0-9_]*)", rest) or ["npm configuration"]
-            return [f"{where} {instruction} sets {', '.join(sorted(set(names)))}; npm configuration belongs in the committed .npmrc"]
+        names = re.findall(r"(?:^|\s)([A-Za-z_][A-Za-z0-9_]*)(?==)", rest) if "=" in rest else rest.split()[:1]
+        blocked = sorted({n for n in names if LOADER_VARS.match(n)})
+        if blocked or re.search(r"npmrc", rest, re.IGNORECASE):
+            return [f"{where} {instruction} sets {', '.join(blocked) or 'an npmrc path'}; npm configuration belongs in the committed .npmrc, and deploys may not change PATH, HOME or NODE_OPTIONS"]
         return []
     if instruction in ("COPY", "ADD"):
-        if any("npmrc" in os.path.basename(w.rstrip("/")).lower() for w in rest.split() if not w.startswith("--")):
+        words = [w for w in rest.split() if not w.startswith("--")]
+        if any("npmrc" in os.path.basename(w.rstrip("/")).lower() for w in words):
             return [f"{where} {instruction} names an npmrc; npm configuration comes only from the committed .npmrc files"]
+        if instruction == "ADD" and any(re.match(r"(?i)[a-z][a-z0-9+.-]*://|git@", w) for w in words):
+            return [f"{where} ADD fetches from a URL; deploys get files only from the repository"]
         return []
     if instruction not in COMMAND_INSTRUCTIONS:
         return []
     while rest.startswith("--"):
-        rest = rest.split(None, 1)[1] if " " in rest else ""
+        parts = rest.split(None, 1)
+        rest = parts[1] if len(parts) > 1 else ""
     if rest.startswith("["):
         try:
             words = json.loads(rest)
         except ValueError:
             return [f"{where} has an exec-form {instruction} that is not valid JSON"]
-        if not (isinstance(words, list) and all(isinstance(w, str) for w in words)):
+        if not (isinstance(words, list) and words and all(isinstance(w, str) for w in words)):
             return [f"{where} has an exec-form {instruction} that is not a list of strings"]
-        return check_words(words, where)  # exec form runs no shell, so $ and backticks are literal
-    return check_command(rest, where)
+        return check_words(words, where, roots)  # exec form runs no shell, so $ and backticks are literal
+    return check_command(rest, where, roots)
 
 
 def check_dockerfile(path, text):
     problems = []
-    for line, instruction, rest in iter_dockerfile_instructions(text):
-        problems += check_dockerfile_instruction(instruction, rest, f"{path}:{line}")
+    for line in text.splitlines():
+        if not line.strip().startswith("#"):
+            break
+        if re.match(r"\s*#\s*escape\s*=", line, re.IGNORECASE):
+            problems.append(f"{path} sets an escape parser directive; deploy files use Docker's default \\ escape")
+    instructions = list(iter_dockerfile_instructions(text))
+    roots = [rest.rstrip("/") for _, instruction, rest in instructions if instruction == "WORKDIR"][:1]
+    for line, instruction, rest in instructions:
+        problems += check_dockerfile_instruction(instruction, rest, f"{path}:{line}", roots)
     return problems
 
 
@@ -207,6 +218,8 @@ def check_vercel(path, text):
     if not isinstance(data, dict):
         return [f"{path} is not a JSON object"]
     problems = []
+    if not data.get("installCommand"):
+        problems.append(f"{path} sets no installCommand, so Vercel would install with its own npm; install from tools/npm")
     for key in VERCEL_COMMANDS:
         value = data.get(key)
         if value is not None and not isinstance(value, str):
@@ -217,23 +230,37 @@ def check_vercel(path, text):
     for env in (data.get("env"), build.get("env") if isinstance(build, dict) else None):
         if isinstance(env, dict):
             for name in env:
-                if re.search(r"npm_config_|npmrc", str(name), re.IGNORECASE):
+                if LOADER_VARS.match(str(name)) or "npmrc" in str(name).lower():
                     problems.append(f"{path} env sets {name}; npm configuration belongs in the committed .npmrc")
     return problems
 
 
-def check_railway(path, text, tracked):
-    """The dockerfilePath targets to scan, and problems with railway.ts's own start commands."""
+def scan_railway(path, text, tracked):
+    """The dockerfilePath targets to scan, and problems with railway.ts itself."""
     targets, problems = [], []
-    for key in re.findall(r"\b(dockerfilePath|start)\s*:\s*`", text):
-        problems.append(f"{path} sets {key} with a template string; write it as a plain quoted string so it can be checked")
-    for target in re.findall(r"dockerfilePath\s*:\s*['\"]([^'\"]+)['\"]", text):
-        if target not in tracked:
-            problems.append(f"{path} builds from {target}, which is not a tracked file")
-        else:
-            targets.append(target)
-    for command in re.findall(r"\bstart\s*:\s*['\"]([^'\"]*)['\"]", text):
-        problems += check_command(command, f"{path} start")
+    if SENSITIVE.search(text):
+        problems.append(f"{path} mentions a package manager or an npmrc; Railway builds and starts through the Dockerfile and plain commands only")
+    for key in re.findall(r"\b(startCommand|buildCommand|preDeployCommand|installCommand)\s*:", text):
+        problems.append(f"{path} sets {key}; deploy commands belong in the Dockerfile, which this check reads")
+    for builder in re.findall(r"\bbuilder\s*:\s*['\"]?([A-Za-z_]+)", text):
+        if builder != "DOCKERFILE":
+            problems.append(f"{path} uses builder {builder}; only DOCKERFILE builds are checked")
+    for key, value in re.findall(r"\b(dockerfilePath|start)\s*:\s*([^\n]*)", text):
+        literal = re.match(rf"({JS_STRING})\s*(?:,|}}|$)", value.strip())
+        function = key == "start" and re.match(rf"encodeFunctionScript\(\s*({JS_STRING})\s*\)\s*(?:,|}}|$)", value.strip())
+        if not (literal or function):
+            problems.append(f"{path} sets {key} to {value.strip()[:40]!r}, which is not a plain string; write it as one so it can be checked")
+            continue
+        string = (literal or function).group(1)[1:-1]
+        if "\\" in string:
+            problems.append(f"{path} sets {key} with an escape sequence; write it plainly so it can be checked")
+        elif key == "start" and literal:
+            problems += check_command(string, f"{path} start")
+        elif key == "dockerfilePath":
+            if string not in tracked:
+                problems.append(f"{path} builds from {string}, which is not a tracked file")
+            else:
+                targets.append(string)
     return targets, problems
 
 
@@ -249,11 +276,14 @@ def is_deploy_name(path):
 def read_text(path):
     if os.path.islink(path):
         raise OSError("is a symlink; deploy files must be regular files")
-    with open(path) as fh:
-        return fh.read()
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return fh.read()
+    except UnicodeDecodeError as exc:
+        raise OSError(f"is not UTF-8 ({exc.reason})") from exc
 
 
-def run(tracked_blob):
+def find_deploy_problems(tracked_blob):
     """Returns (problems, number of deploy files checked)."""
     tracked = [p for p in tracked_blob.split("\0") if p]
     tracked_set = set(tracked)
@@ -262,7 +292,7 @@ def run(tracked_blob):
     railway = ".railway/railway.ts"
     if railway in tracked_set:
         try:
-            targets, railway_problems = check_railway(railway, read_text(railway), tracked_set)
+            targets, railway_problems = scan_railway(railway, read_text(railway), tracked_set)
         except OSError as exc:
             targets, railway_problems = [], [f"{railway} could not be read ({exc})"]
         problems += railway_problems
@@ -278,3 +308,17 @@ def run(tracked_blob):
         else:
             problems += check_dockerfile(path, text)
     return problems, len(files)
+
+
+def main():
+    problems, checked = find_deploy_problems(sys.stdin.read())
+    for line in problems:
+        print(line)
+    if not checked:
+        print("found no deploy file to check (no Dockerfile, Containerfile or vercel.json is tracked)")
+        return 1
+    return 1 if problems else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
