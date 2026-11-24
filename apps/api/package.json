@@ -13,24 +13,24 @@
   },
   "dependencies": {
     "@openrouter/ai-sdk-provider": "^2.10.0",
-    "@posthog/ai": "^8.13.1",
-    "@supabase/supabase-js": "^2.117.1",
-    "@trpc/server": "^11.19.0",
-    "ai": "^6.0.290",
+    "@posthog/ai": "^8.20.2",
+    "@supabase/supabase-js": "^2.119.0",
+    "@trpc/server": "^11.28.3",
+    "ai": "^6.0.332",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
-    "express": "^5.2.1",
+    "express": "^5.3.0",
     "http-errors": "^2.0.1",
     "ioredis": "^5.11.1",
-    "posthog-node": "^5.53.0",
-    "zod": "^4.6.5"
+    "posthog-node": "^5.74.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/http-errors": "^2.0.5",
-    "@types/node": "^24.13.6",
-    "tsc-alias": "^1.9.5",
+    "@types/node": "^24.19.2",
+    "tsc-alias": "^1.9.10",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3"
   },
