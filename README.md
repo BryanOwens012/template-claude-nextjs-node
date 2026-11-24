@@ -119,6 +119,7 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 │   ├── install-changed-lockfiles.sh  # npm install per changed lockfile (shared by the sync hooks)
 │   ├── check-hooks-installed.sh      # npm run check:hooks
 │   ├── check-node-version-ssot.sh    # npm run check:node-version
+│   ├── check-install-scripts.sh      # npm run check:install-scripts
 │   ├── gen-supabase-types.sh         # Regenerate Supabase types (see Database Migrations)
 │   ├── new-worktree.sh               # npm run worktree:new
 │   ├── run-shell-tests.sh            # npm run test:scripts:sh
@@ -141,7 +142,7 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 
 ### Prerequisites
 
-- Node.js 26.0.0 or higher
+- Node.js 26.11 or higher (`nvm install` reads `.nvmrc`); it bundles npm 11.20, which runs a dependency's install script only when that workspace's `allowScripts` approves it. If an install ends by listing skipped scripts, `npm run check:install-scripts` says what needs a decision
 - npm or yarn
 - [Supabase account](https://supabase.com) (free tier available)
 
@@ -514,6 +515,7 @@ npm run lint:check
 # Hooks, worktrees, and shell tests
 npm run check:hooks                              # fail if git would run no hooks here
 npm run check:node-version                       # fail if any engines.node / FROM node: disagrees with .nvmrc
+npm run check:install-scripts                    # fail if a dependency install script has no allowScripts decision
 npm run worktree:new -- ../repo.feat bryan/feat  # provisioned worktree, hooks verified
 npm run test:scripts:sh                          # every scripts/**/*.test.sh, discovered by find
 npm run test:api                                 # apps/api unit tests

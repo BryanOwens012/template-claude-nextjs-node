@@ -107,9 +107,9 @@ When you install a new package:
 - Each service under `apps/` has its own `package.json` and `package-lock.json`
 - `apps/api/package.json` - Node.js dependencies for the API service
 - Each service is independently deployable with its own dependencies
-- If you add a new service, create its own `package.json`, with `"engines": { "node": ">=<major>.0.0" }` matching `.nvmrc`
-- **`.nvmrc` holds the Node major.** Every `engines.node` and every Dockerfile `FROM node:` tag must state the same major; `npm run check:node-version` (in the gauntlet) fails on any that drift. Change the major everywhere in one commit.
-- **Dependency install scripts are blocked unless `allowScripts` says otherwise** (npm 11.20+, bundled with Node 26). Each workspace's `package.json` records a decision for every dependency with an install script; the current entries are denials, because nothing here needs them. When an install ends with a list of skipped scripts, review each package and record the decision with `npm install-scripts approve <pkg>` or `npm install-scripts deny <pkg>` in that workspace (the command does not understand workspaces). Approve only a script the package cannot work without, and confirm with `npm install-scripts ls` that nothing is left unreviewed.
+- If you add a new service, create its own `package.json`, with the same `engines.node` as the root `package.json`
+- **`.nvmrc` holds the Node major.** Every `engines.node` and every Dockerfile `FROM node:` tag must state the same major; `npm run check:node-version` (in the gauntlet) fails on any that drift. Change the major everywhere in one commit. `engines.node` sets the floor at `26.11.0`, the first Node 26 release that bundles npm 11.20.
+- **Dependency install scripts run only where `allowScripts` in that workspace's `package.json` says so** (npm 11.20+). npm skips any other with a notice at the end of the install, and `npm run check:install-scripts` (in the gauntlet) fails until each one has a decision. Review the package, then from that workspace's directory (the command does not understand workspaces) run `npm install-scripts deny <pkg>`, or `npm install-scripts approve <pkg>` only for a script the package cannot work without. An approval stays pinned to the reviewed version, which is the command's default.
 
 **Example workflow:**
 
@@ -262,6 +262,7 @@ scripts/
 ├── install-changed-lockfiles.sh  # Shared by the four sync hooks: npm install per changed lockfile
 ├── check-hooks-installed.sh      # npm run check:hooks — fails when git would run no hooks here
 ├── check-node-version-ssot.sh    # npm run check:node-version — .nvmrc is the Node major; every engines.node and FROM node: must agree
+├── check-install-scripts.sh      # npm run check:install-scripts — every dependency install script has an allowScripts decision
 ├── gen-supabase-types.sh         # Regenerates apps/shared/supabase/types.ts; the only sanctioned route
 ├── new-worktree.sh               # npm run worktree:new — worktree + npm ci + api build + hook check
 ├── run-shell-tests.sh            # npm run test:scripts:sh — finds and runs every *.test.sh, bounded

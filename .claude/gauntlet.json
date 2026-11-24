@@ -3,6 +3,7 @@
   "checks": [
     { "name": "check-hooks", "run": "npm run check:hooks" },
     { "name": "check-node-version", "run": "npm run check:node-version" },
+    { "name": "check-install-scripts", "run": "npm run check:install-scripts" },
     { "name": "format-js", "run": "npm run format:js:check" },
     { "name": "format-md", "run": "npm run format:md:check" },
     { "name": "format-shell", "run": "npm run format:shell:check" },
