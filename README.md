@@ -128,7 +128,7 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 ├── .husky/                   # pre-commit + lockfile-sync hooks (post-merge/rewrite/checkout/commit)
 ├── .claude/gauntlet.json     # Declared pre-merge quality gate
 ├── .nvmrc                    # Node major; engines.node and Dockerfile tags must match
-├── .npmrc                    # strict-allow-scripts=true (each workspace has the same file)
+├── .npmrc                    # engine-strict=true (each workspace has the same file)
 ├── .mcp.json                 # MCP servers for AI agents (Vercel, Railway, Supabase read-only)
 ├── AGENTS.md                 # AI agent entry point (redirects to CLAUDE.md)
 ├── CLAUDE.md                 # Comprehensive development guidelines and best practices
@@ -143,8 +143,8 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 
 ### Prerequisites
 
-- Node.js 26 at or above the `engines.node` floor in `package.json` (`nvm install` reads `.nvmrc`)
-- An install that fails with `ESTRICTALLOWSCRIPTS` means a dependency has an install script with no decision yet; `npm run check:install-scripts` names it and the command that records one
+- Node.js 26 (`nvm install` reads `.nvmrc`) and npm 12 or later (`npm install -g npm@12`); with an older npm, installs fail with `EBADENGINE`
+- An install that ends by listing skipped install scripts means a dependency's script has no decision yet; `npm run check:install-scripts` names it and the command that records one
 - npm or yarn
 - [Supabase account](https://supabase.com) (free tier available)
 
@@ -526,7 +526,7 @@ npm run test:api                                 # apps/api unit tests
 .editorconfig             # Shell script formatting standards
 biome.json               # JS/TS formatting and linting rules
 .nvmrc                   # Node major; engines.node and Dockerfile FROM node: must agree
-.npmrc                   # strict-allow-scripts=true; refuse undecided dependency install scripts
+.npmrc                   # engine-strict=true; an npm older than engines.npm refuses to install
 .prettierrc              # Markdown formatter configuration
 .sql-formatter.json      # PostgreSQL SQL formatting
 .husky/                  # pre-commit + the four lockfile-sync hooks

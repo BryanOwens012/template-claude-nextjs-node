@@ -3,7 +3,7 @@
   "buildCommand": "cd ../api && npx tsc && cd ../web && npm run build",
   "outputDirectory": ".next",
   "devCommand": "npm run dev",
-  "installCommand": "npm install && cd ../api && npm install",
+  "installCommand": "npx -y npm@12.2.2 install && cd ../api && npx -y npm@12.2.2 install",
   "framework": "nextjs",
   "git": {
     "deploymentEnabled": {

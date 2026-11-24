@@ -108,8 +108,8 @@ When you install a new package:
 - `apps/api/package.json` - Node.js dependencies for the API service
 - Each service is independently deployable with its own dependencies
 - If you add a new service, create its own `package.json`, with the same `engines.node` as the root `package.json`
-- **`.nvmrc` holds the Node major.** Every `engines.node` and every Dockerfile `FROM node:` tag must state the same major; `npm run check:node-version` (in the gauntlet) fails on any that drift. Change the major everywhere in one commit. Every `engines.node` is the same range, whose floor is the first release of that major bundling the npm `check:install-scripts` requires (`MIN_NPM` in that script).
-- **Every dependency install script needs a decision in its workspace's `allowScripts`.** On its own, npm runs an undecided script and only warns, so each workspace's `.npmrc` sets `strict-allow-scripts=true` and the install fails instead; `npm run check:install-scripts` (in the gauntlet) fails on an undecided script and on a workspace missing that `.npmrc` line. To decide, review the package, then from that workspace's directory (the command does not understand workspaces) run `npm install-scripts deny <pkg>`, or `npm install-scripts approve <pkg>` only for a script the package cannot work without. An approval stays pinned to the reviewed version, which is the command's default. A new workspace gets the same `.npmrc`.
+- **`.nvmrc` holds the Node major.** Every `engines.node` and every Dockerfile `FROM node:` tag must state the same major; `npm run check:node-version` (in the gauntlet) fails on any that drift. Change the major everywhere in one commit.
+- **npm 12 is required, and every dependency install script needs a decision in its workspace's `allowScripts`.** npm 12 skips an install script with no decision and lists it at the end of the install; older npm runs it. So every `package.json` declares `engines.npm` `>=12.0.0` and every workspace's `.npmrc` sets `engine-strict=true`, which makes an older npm refuse to install at all. The API Dockerfile and Vercel's `installCommand` run a pinned npm 12 for the same reason. `npm run check:install-scripts` (in the gauntlet) fails on an undecided script, a missing `engines.npm`, a workspace without that `.npmrc` line, and an npm older than 12. When an install lists skipped scripts, review each package, then from that workspace's directory (the command does not understand workspaces) run `npm install-scripts deny <pkg>`, or `npm install-scripts approve <pkg>` only for a script the package cannot work without; an approval stays pinned to the reviewed version, which is the command's default. A new workspace gets the same `engines.npm` and `.npmrc`.
 
 **Example workflow:**
 
@@ -253,7 +253,7 @@ apps/shared/
 ```
 vercel.json            # Vercel deployment config for web app (simplified)
 .nvmrc                 # Node major (source of truth for engines.node and Dockerfile FROM node:)
-.npmrc                 # strict-allow-scripts=true; every workspace (apps/*/.npmrc) carries the same file
+.npmrc                 # engine-strict=true; every workspace (apps/*/.npmrc) carries the same file
 .railway/railway.ts    # Railway Infrastructure as Code: API (Dockerfile → apps/api/Dockerfile), Redis, Keep-Alive
 .railway/tsconfig.json # Typechecks railway.ts against the `railway` SDK (npm run typecheck:railway)
 .claude/gauntlet.json  # Declared pre-merge quality gate, cheapest check first (check:hooks)

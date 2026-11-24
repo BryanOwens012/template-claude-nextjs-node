@@ -35,7 +35,9 @@ bad() {
 	printf '  FAIL  %s\n' "$1"
 }
 
-SANDBOX="$(mktemp -d -t install-scripts.XXXXXX)"
+# The template form, not `mktemp -t`: BSD mktemp appends its own suffix after -t's template,
+# so the name would never match the cleanup guard below and the sandbox would leak.
+SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/install-scripts.XXXXXX")"
 if [ -z "$SANDBOX" ] || [ ! -d "$SANDBOX" ]; then
 	echo "mktemp failed — cannot run tests" >&2
 	exit 1
@@ -54,13 +56,13 @@ cat >"$SANDBOX/bin/npm" <<'STUB'
 # Stub npm. The check gives every npm call </dev/null, so the stub never reads stdin.
 case "${1:-}" in
 --version)
-	printf '%s\n' "${STUB_NPM_VERSION:-11.20.0}"
+	printf '%s\n' "${STUB_NPM_VERSION:-12.2.2}"
 	;;
 config)
-	if [ "${2:-}" = "get" ] && [ "${3:-}" = "strict-allow-scripts" ]; then
+	if [ "${2:-}" = "get" ] && [ "${3:-}" = "engine-strict" ]; then
 		# Real npm reads an exported npm_config_* ahead of the project .npmrc; so does the stub.
-		if [ -n "${npm_config_strict_allow_scripts:-}" ]; then
-			printf '%s\n' "$npm_config_strict_allow_scripts"
+		if [ -n "${npm_config_engine_strict:-}" ]; then
+			printf '%s\n' "$npm_config_engine_strict"
 		elif [ -f .stub-strict ]; then cat .stub-strict; else printf 'true\n'; fi
 		exit 0
 	fi
@@ -92,7 +94,8 @@ build_sandbox() {
 		git init -q .
 		for d in . apps/api apps/web; do
 			printf '{}\n' >"$d/package-lock.json"
-			printf 'strict-allow-scripts=true\n' >"$d/.npmrc"
+			printf 'engine-strict=true\n' >"$d/.npmrc"
+			printf '{"engines":{"node":">=26.0.0","npm":">=12.0.0"}}\n' >"$d/package.json"
 			mkdir -p "$d/node_modules"
 			printf '{}\n' >"$d/node_modules/.package-lock.json"
 		done
@@ -111,33 +114,42 @@ echo
 echo "check-install-scripts — a workspace that would still run undecided scripts fails"
 build_sandbox
 rm -f -- "$SANDBOX/tree/apps/web/.npmrc"
-if out="$(run_check)"; then bad "a workspace with no .npmrc passed"; else ok "a workspace whose .npmrc lacks strict-allow-scripts fails"; fi
-case "$out" in *"apps/web: apps/web/.npmrc does not set strict-allow-scripts=true"*) ok "names the workspace and its .npmrc" ;; *) bad "wrong reason: $out" ;; esac
+if out="$(run_check)"; then bad "a workspace with no .npmrc passed"; else ok "a workspace whose .npmrc lacks engine-strict fails"; fi
+case "$out" in *"apps/web: apps/web/.npmrc does not set engine-strict=true"*) ok "names the workspace and its .npmrc" ;; *) bad "wrong reason: $out" ;; esac
 
 build_sandbox
-printf 'strict-allow-scripts=false\n' >"$SANDBOX/tree/apps/api/.npmrc"
-if out="$(run_check)"; then bad "strict-allow-scripts=false passed"; else ok "an .npmrc that sets it to false fails"; fi
+printf 'engine-strict=false\n' >"$SANDBOX/tree/apps/api/.npmrc"
+if out="$(run_check)"; then bad "engine-strict=false passed"; else ok "an .npmrc that sets it to false fails"; fi
 
 build_sandbox
 printf 'false\n' >"$SANDBOX/tree/apps/api/.stub-strict"
 if out="$(run_check)"; then bad "a line npm resolves to false passed"; else ok "an .npmrc line that npm resolves to false fails"; fi
-case "$out" in *"apps/api: apps/api/.npmrc sets strict-allow-scripts=true but npm resolves it to false"*) ok "says a later setting overrides it" ;; *) bad "wrong reason: $out" ;; esac
+case "$out" in *"apps/api: apps/api/.npmrc sets engine-strict=true but npm resolves it to false"*) ok "says a later setting overrides it" ;; *) bad "wrong reason: $out" ;; esac
 
 build_sandbox
 : >"$SANDBOX/tree/.stub-strict"
-if out="$(run_check)"; then bad "an unresolved strict-allow-scripts passed"; else ok "a setting npm resolves to nothing fails"; fi
-case "$out" in *"(root): ./.npmrc sets strict-allow-scripts=true but npm resolves it to unset"*) ok "reports the root workspace as unset" ;; *) bad "wrong reason: $out" ;; esac
+if out="$(run_check)"; then bad "an unresolved engine-strict passed"; else ok "a setting npm resolves to nothing fails"; fi
+case "$out" in *"(root): ./.npmrc sets engine-strict=true but npm resolves it to unset"*) ok "reports the root workspace as unset" ;; *) bad "wrong reason: $out" ;; esac
 
-# The regression this guards: `npm run` exports the root's npm_config_strict_allow_scripts,
+# The regression this guards: `npm run` exports the root's npm_config_engine_strict,
 # which would otherwise make every workspace report the root's value instead of its own.
 build_sandbox
 printf 'false\n' >"$SANDBOX/tree/apps/web/.stub-strict"
-if out="$(cd -- "$SANDBOX/tree" && npm_config_strict_allow_scripts=true bash scripts/check-install-scripts.sh 2>&1)"; then
-	bad "an inherited npm_config_strict_allow_scripts masked the workspace's own value"
+if out="$(cd -- "$SANDBOX/tree" && npm_config_engine_strict=true bash scripts/check-install-scripts.sh 2>&1)"; then
+	bad "an inherited npm_config_engine_strict masked the workspace's own value"
 else
 	ok "an inherited npm_config_* does not mask a workspace's own value"
 fi
-case "$out" in *"apps/web: apps/web/.npmrc sets strict-allow-scripts=true but npm resolves it to false"*) ok "reads the web workspace's own value" ;; *) bad "wrong reason: $out" ;; esac
+case "$out" in *"apps/web: apps/web/.npmrc sets engine-strict=true but npm resolves it to false"*) ok "reads the web workspace's own value" ;; *) bad "wrong reason: $out" ;; esac
+
+build_sandbox
+printf '{"engines":{"node":">=26.0.0"}}\n' >"$SANDBOX/tree/apps/api/package.json"
+if out="$(run_check)"; then bad "a package.json without engines.npm passed"; else ok "a package.json without engines.npm fails"; fi
+case "$out" in *"apps/api: apps/api/package.json does not declare engines.npm"*) ok "names the manifest missing engines.npm" ;; *) bad "wrong reason: $out" ;; esac
+
+build_sandbox
+printf '{"engines":{"node":">=26.0.0","npm":">=11.20.0"}}\n' >"$SANDBOX/tree/apps/web/package.json"
+if out="$(run_check)"; then bad "engines.npm >=11.20.0 passed"; else ok "an engines.npm floor below 12 fails"; fi
 
 echo
 echo "check-install-scripts — an unreviewed install script fails and is named"
@@ -161,12 +173,12 @@ if out="$(run_check)"; then bad "an uninstalled workspace read as clean"; else o
 case "$out" in *"apps/api has no installed tree"*) ok "says which workspace is not installed" ;; *) bad "wrong reason: $out" ;; esac
 
 build_sandbox
-if out="$(cd -- "$SANDBOX/tree" && STUB_NPM_VERSION=11.12.1 bash scripts/check-install-scripts.sh 2>&1)"; then
-	bad "npm 11.12.1, which ignores allowScripts, passed"
+if out="$(cd -- "$SANDBOX/tree" && STUB_NPM_VERSION=11.20.0 bash scripts/check-install-scripts.sh 2>&1)"; then
+	bad "npm 11.20.0, which runs undecided install scripts, passed"
 else
-	ok "an npm older than 11.20 fails"
+	ok "an npm older than 12 fails"
 fi
-case "$out" in *"npm 11.12.1 has no allowScripts support"*) ok "names the npm version it refused" ;; *) bad "wrong reason: $out" ;; esac
+case "$out" in *"npm 11.20.0 runs undecided install scripts"*) ok "names the npm version it refused" ;; *) bad "wrong reason: $out" ;; esac
 
 build_sandbox
 printf 'not json\n' >"$SANDBOX/tree/.stub-ls.json"

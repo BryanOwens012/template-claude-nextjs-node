@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 #
 # check-install-scripts.sh — fail when a dependency's install script has no recorded decision,
-# or when a workspace stops refusing such scripts at install time.
+# or when a workspace stops requiring the npm that skips such scripts.
 #
 # Run:  npm run check:install-scripts
 #   (or: bash scripts/check-install-scripts.sh)
 #
-# npm (MIN_NPM and later) reads a decision per dependency install script from `allowScripts` in the
-# workspace's package.json. By default it still RUNS a script with no decision and only
-# prints a warning, so a new dependency's postinstall executes on the first install. Each
-# workspace's .npmrc therefore sets strict-allow-scripts=true, which makes the install fail
-# instead. This check holds both halves in the gauntlet:
-#   - every workspace's effective strict-allow-scripts is true, so the .npmrc line cannot be
-#     dropped silently;
+# npm 12 reads a decision per dependency install script from `allowScripts` in the workspace's
+# package.json and skips any script with none, printing a notice; older npm runs it. Each
+# workspace therefore requires npm 12 (`engines.npm`) and makes that binding with
+# engine-strict=true in its .npmrc, so an older npm refuses to install instead. This check holds
+# all of it in the gauntlet:
+#   - every package.json declares engines.npm at MIN_NPM's major or later;
+#   - every workspace's .npmrc sets engine-strict=true and npm resolves it to true there, so the
+#     line cannot be dropped or overridden silently;
 #   - `npm install-scripts ls` lists nothing without a decision, naming any package that does.
 #
 # Three properties of `npm install-scripts ls` shape it, and each is a way it could otherwise
@@ -29,7 +30,7 @@
 set -u
 
 PREFIX="check-install-scripts"
-MIN_NPM="11.20.0"
+MIN_NPM="12.0.0"
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || {
 	printf '%s: FAIL — not inside a git working tree.\n' "$PREFIX" >&2
@@ -68,8 +69,8 @@ except ValueError:
 case "$version_ok" in
 yes) ;;
 no)
-	printf '%s: FAIL — npm %s has no allowScripts support; this check needs npm %s or later.\n' "$PREFIX" "$npm_version" "$MIN_NPM" >&2
-	printf 'Run nvm install to get the Node in .nvmrc; engines.node in package.json is its floor.\n' >&2
+	printf '%s: FAIL — npm %s runs undecided install scripts; this repo needs npm %s or later.\n' "$PREFIX" "$npm_version" "$MIN_NPM" >&2
+	printf 'Run npm install -g npm@12 (after nvm install for the Node in .nvmrc).\n' >&2
 	exit 1
 	;;
 *)
@@ -106,16 +107,28 @@ while IFS= read -r lockfile; do
 	[ "$label" = "." ] && label="(root)"
 	examined=$((examined + 1))
 
+	# engines.npm must require npm 12 or later, since that is what engine-strict enforces.
+	if ! python3 -c '
+import json, re, sys
+engines = json.load(open(sys.argv[1])).get("engines") or {}
+spec = engines.get("npm")
+m = re.match(r"\s*>=\s*v?(\d+)", spec) if isinstance(spec, str) else None
+sys.exit(0 if m and int(m.group(1)) >= int(sys.argv[2]) else 1)
+' "$dir/package.json" "${MIN_NPM%%.*}" 2>/dev/null; then
+		printf '%s: %s: %s/package.json does not declare engines.npm ">=%s" or later.\n' "$PREFIX" "$label" "$dir" "$MIN_NPM" >&2
+		problems=$((problems + 1))
+	fi
+
 	# Both halves: the committed file must carry the line, so a user-level or environment
 	# setting cannot stand in for it on one machine, and npm must resolve it to true there,
 	# so a later line in the file cannot switch it back off.
-	if ! grep -qxE '[[:space:]]*strict-allow-scripts[[:space:]]*=[[:space:]]*true[[:space:]]*' -- "$dir/.npmrc" 2>/dev/null; then
-		printf '%s: %s: %s/.npmrc does not set strict-allow-scripts=true, so npm would run an undecided install script there.\n' "$PREFIX" "$label" "$dir" >&2
+	if ! grep -qxE '[[:space:]]*engine-strict[[:space:]]*=[[:space:]]*true[[:space:]]*' -- "$dir/.npmrc" 2>/dev/null; then
+		printf '%s: %s: %s/.npmrc does not set engine-strict=true, so an npm older than %s would install there and run undecided install scripts.\n' "$PREFIX" "$label" "$dir" "$MIN_NPM" >&2
 		problems=$((problems + 1))
 	else
-		strict=$(cd -- "$dir" && npm config get strict-allow-scripts </dev/null 2>/dev/null)
+		strict=$(cd -- "$dir" && npm config get engine-strict </dev/null 2>/dev/null)
 		if [ "$strict" != "true" ]; then
-			printf '%s: %s: %s/.npmrc sets strict-allow-scripts=true but npm resolves it to %s there; a later setting overrides it.\n' "$PREFIX" "$label" "$dir" "${strict:-unset}" >&2
+			printf '%s: %s: %s/.npmrc sets engine-strict=true but npm resolves it to %s there; a later setting overrides it.\n' "$PREFIX" "$label" "$dir" "${strict:-unset}" >&2
 			problems=$((problems + 1))
 		fi
 	fi
@@ -157,4 +170,4 @@ if [ "$problems" -gt 0 ]; then
 	exit 1
 fi
 
-printf '%s: OK — %d workspace(s) refuse undecided install scripts, and every one has a decision in allowScripts.\n' "$PREFIX" "$examined"
+printf '%s: OK — %d workspace(s) require npm %s with engine-strict, and every install script has a decision in allowScripts.\n' "$PREFIX" "$examined" "${MIN_NPM%%.*}"
