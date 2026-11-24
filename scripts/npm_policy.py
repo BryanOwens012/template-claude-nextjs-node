@@ -18,8 +18,7 @@ Subcommands:
                                     or is bundled inside one that does; prints the count examined
   bootstrap <dir> <minimum>         <dir>/package.json pins npm exactly, its lockfile agrees,
                                     that version is at or above minimum, no entry has an install
-                                    script, and <dir>/.npmrc pins the registry and sets nothing
-                                    that lets scripts run or changes where packages come from
+                                    script, and <dir>/.npmrc holds exactly BOOTSTRAP_NPMRC
   parse-ls                          stdin: `npm install-scripts ls --json`; prints one
                                     undecided package name per line
 
@@ -52,9 +51,24 @@ ENV_ALLOWED = {
 }
 
 
+# The bootstrap is installed by the host's npm, which may predate engines.npm, so its .npmrc
+# holds exactly these (no engine-strict; no allow-remote, which npm 11 reads as blocking
+# registry tarballs and npm 12 already defaults to none).
+BOOTSTRAP_NPMRC = {"registry": REGISTRY, "allow-git": "none", "allow-file": "none", "allow-directory": "none"}
+
+
 def norm_key(raw):
     """npm reads `allow-scripts[]`, `allow_scripts` and `ALLOW-SCRIPTS` as the same setting."""
     return raw.strip().lower().replace("_", "-").split("[", 1)[0].strip()
+
+
+def is_forbidden(key):
+    """allow-scripts, allow-scripts.<pkg>, dangerously-allow-all-scripts, and the like."""
+    return any(key == f or key.startswith(f + ".") for f in FORBIDDEN)
+
+
+def changes_registry(key):
+    return key.endswith(":registry") or key == "replace-registry-host"
 
 
 def as_text(value):
@@ -134,7 +148,7 @@ def cmd_config(npmrc):
             continue
         name, _, value = line.partition("=")
         key = norm_key(name)
-        if key in FORBIDDEN:
+        if is_forbidden(key):
             problems.append(f"{npmrc} sets {name.strip()}, which lets install scripts run without a decision in allowScripts")
         elif key.endswith(":registry") or key == "replace-registry-host":
             problems.append(f"{npmrc} sets {name.strip()}, which changes where packages are fetched from")
@@ -160,16 +174,22 @@ def cmd_config(npmrc):
     return 1 if problems else 0
 
 
+def env_problem(name, value, where="environment variable"):
+    """The problem with an npm_config_* variable in the process environment, or None."""
+    if not name.lower().startswith("npm_config_"):
+        return None
+    key = norm_key(name[len("npm_config_"):])
+    if changes_registry(key):
+        return f"{where} {name} changes where packages are fetched from"
+    if is_forbidden(key) and key not in ENV_ALLOWED:
+        return f"{where} {name} lets install scripts run without a decision in allowScripts"
+    if key in ENV_ALLOWED and str(value).strip().lower().rstrip("/") != ENV_ALLOWED[key].lower().rstrip("/"):
+        return f"{where} {name}={value!r} overrides the npm policy ({key} must be {ENV_ALLOWED[key]!r})"
+    return None
+
+
 def cmd_env():
-    problems = []
-    for name, value in sorted(os.environ.items()):
-        if not name.lower().startswith("npm_config_"):
-            continue
-        key = norm_key(name[len("npm_config_"):])
-        if key.endswith(":registry") or key == "replace-registry-host":
-            problems.append(f"environment variable {name} changes where packages are fetched from")
-        elif key in ENV_ALLOWED and value.strip().lower() != ENV_ALLOWED[key].lower():
-            problems.append(f"environment variable {name}={value!r} overrides the npm policy ({key} must be {ENV_ALLOWED[key]!r})")
+    problems = [p for p in (env_problem(n, v) for n, v in sorted(os.environ.items())) if p]
     for line in problems:
         print(line)
     return 1 if problems else 0
@@ -268,13 +288,14 @@ def cmd_bootstrap(directory, minimum):
             continue
         name, _, value = line.partition("=")
         key = norm_key(name)
-        if key in FORBIDDEN:
-            problems.append(f"{npmrc} sets {name.strip()}, which lets install scripts run without a decision")
-        elif key.endswith(":registry") or key == "replace-registry-host":
-            problems.append(f"{npmrc} sets {name.strip()}, which changes where packages are fetched from")
+        if key not in BOOTSTRAP_NPMRC:
+            problems.append(f"{npmrc} sets {name.strip()}; the bootstrap .npmrc may set only {', '.join(BOOTSTRAP_NPMRC)}")
+        elif value.strip() != BOOTSTRAP_NPMRC[key]:
+            problems.append(f"{npmrc} sets {key}={value.strip()}; it must be {BOOTSTRAP_NPMRC[key]}")
         committed[key] = value.strip()
-    if committed.get("registry") != REGISTRY:
-        problems.append(f"{npmrc} does not set registry={REGISTRY}")
+    for key, value in BOOTSTRAP_NPMRC.items():
+        if key not in committed:
+            problems.append(f"{npmrc} does not set {key}={value}")
     if problems:
         for line in problems:
             print(line)

@@ -121,6 +121,7 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 │   ├── check-node-version-ssot.sh    # npm run check:node-version
 │   ├── check-npm-policy.sh           # npm run check:npm-policy
 │   ├── npm_policy.py                 # Parsing half of check-npm-policy.sh
+│   ├── npm_policy_deploy.py          # Its deploy-file allowlist (Dockerfiles, vercel.json, railway.ts)
 │   ├── gen-supabase-types.sh         # Regenerate Supabase types (see Database Migrations)
 │   ├── new-worktree.sh               # npm run worktree:new
 │   ├── run-shell-tests.sh            # npm run test:scripts:sh

