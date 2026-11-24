@@ -17,8 +17,8 @@
 #     dangerously-allow-all-scripts line in any spelling (`allow-scripts[]`, `allow_scripts`),
 #     and npm must resolve both to empty/false in every workspace.
 #   - Every install script has a decision: `npm install-scripts ls` lists nothing undecided.
-#   - Deploys get npm from tools/npm, whose lockfile pins its version and integrity: every npm
-#     and npx call in a deploy file is parsed, and none may fetch npm or install with another.
+#   - Deploys get npm from tools/npm, whose lockfile pins its version and integrity, and deploy
+#     files may use npm only in the shapes scripts/npm_policy_deploy.py allows.
 #
 # The environment: `npm run` exports the root's resolved config as npm_config_*, and npm reads
 # those ahead of a workspace's .npmrc. The check first fails on any such variable that
@@ -49,7 +49,7 @@ fail() {
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || fail "not inside a git working tree."
 cd -- "$ROOT" || exit 1
 command -v python3 >/dev/null 2>&1 || fail "python3 is not on PATH; it parses npm output here."
-POLICY=(python3 "$ROOT/scripts/npm_policy.py")
+POLICY=(python3 -B "$ROOT/scripts/npm_policy.py") # -B: importing npm_policy_deploy writes no __pycache__
 [ -f "$ROOT/scripts/npm_policy.py" ] || fail "scripts/npm_policy.py is missing."
 
 # The environment first, while the inherited npm_config_* are still visible.
@@ -89,11 +89,7 @@ if ! pinned=$("${POLICY[@]}" bootstrap "$BOOTSTRAP_DIR" "$MIN_NPM"); then
 		report "$BOOTSTRAP_DIR" "$line"
 	done <<<"$pinned"
 fi
-# Deploy files: every npm and npx call in a Dockerfile, Containerfile, vercel.json, or the
-# dockerfilePath .railway/railway.ts names is parsed, not pattern-matched. None may fetch npm
-# itself, any install must use the bootstrapped npm, and no option, ENV/ARG line, inline
-# assignment or vercel.json env may contradict the policy.
-if ! deploy_problems=$(git ls-files | "${POLICY[@]}" deploy); then
+if ! deploy_problems=$(git ls-files -z | "${POLICY[@]}" deploy); then
 	while IFS= read -r line; do
 		report "deploy" "$line"
 	done <<<"$deploy_problems"

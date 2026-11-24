@@ -279,3 +279,6 @@ screenshots/
 
 # entire.io session data (logging is off)
 /.entire/
+
+# Python bytecode
+__pycache__/

@@ -18,16 +18,12 @@ Subcommands:
                                     or is bundled inside one that does; prints the count examined
   bootstrap <dir> <minimum>         <dir>/package.json pins npm exactly, its lockfile agrees,
                                     that version is at or above minimum, no entry has an install
-                                    script, and <dir>/.npmrc pins the registry and sets nothing
-                                    that lets scripts run or changes where packages come from
+                                    script, and <dir>/.npmrc holds exactly BOOTSTRAP_NPMRC
   parse-ls                          stdin: `npm install-scripts ls --json`; prints one
                                     undecided package name per line
-  deploy                            stdin: tracked file paths (`git ls-files`). In every deploy
-                                    file (Dockerfile/Containerfile by name, vercel.json, and the
-                                    dockerfilePath .railway/railway.ts names), every npm and npx
-                                    call is parsed: none may fetch npm itself, any install must
-                                    use the bootstrapped npm, and no npm option, ENV/ARG line,
-                                    inline assignment or vercel.json env may contradict the policy
+  deploy                            stdin: NUL-separated tracked paths (`git ls-files -z`); deploy
+                                    files may use npm only in the shapes npm_policy_deploy.py
+                                    allows (see its docstring)
 
 Standard library only.
 """
@@ -35,7 +31,6 @@ Standard library only.
 import json
 import os
 import re
-import shlex
 import sys
 
 REGISTRY = "https://registry.npmjs.org/"
@@ -57,6 +52,12 @@ ENV_ALLOWED = {
     "dangerously-allow-all-scripts": "false",
     "allow-scripts": "",
 }
+
+
+# The bootstrap is installed by the host's npm, which may predate engines.npm, so its .npmrc
+# holds exactly these (no engine-strict; no allow-remote, which npm 11 reads as blocking
+# registry tarballs and npm 12 already defaults to none).
+BOOTSTRAP_NPMRC = {"registry": REGISTRY, "allow-git": "none", "allow-file": "none", "allow-directory": "none"}
 
 
 def norm_key(raw):
@@ -177,8 +178,7 @@ def cmd_config(npmrc):
 
 
 def env_problem(name, value, where="environment variable"):
-    """The problem with an npm_config_* assignment, or None. Used for the process environment
-    and for ENV/ARG lines, inline assignments and vercel.json env in deploy files."""
+    """The problem with an npm_config_* variable in the process environment, or None."""
     if not name.lower().startswith("npm_config_"):
         return None
     key = norm_key(name[len("npm_config_"):])
@@ -186,7 +186,7 @@ def env_problem(name, value, where="environment variable"):
         return f"{where} {name} changes where packages are fetched from"
     if is_forbidden(key) and key not in ENV_ALLOWED:
         return f"{where} {name} lets install scripts run without a decision in allowScripts"
-    if key in ENV_ALLOWED and str(value).strip().lower() != ENV_ALLOWED[key].lower():
+    if key in ENV_ALLOWED and str(value).strip().lower().rstrip("/") != ENV_ALLOWED[key].lower().rstrip("/"):
         return f"{where} {name}={value!r} overrides the npm policy ({key} must be {ENV_ALLOWED[key]!r})"
     return None
 
@@ -198,265 +198,14 @@ def cmd_env():
     return 1 if problems else 0
 
 
-BOOTSTRAP_BIN = "tools/npm/node_modules/.bin/npm"
-# npm's install subcommands and their aliases, from `npm help install`/`ci`/`update`.
-INSTALL_CMDS = {
-    "install", "i", "in", "ins", "inst", "insta", "instal", "isnt", "isnta", "isntal", "isntall",
-    "add", "ci", "clean-install", "ic", "install-clean", "isntall-clean", "install-ci-test",
-    "cit", "install-test", "it", "update", "up", "upgrade", "udpate",
-}
-EXEC_CMDS = {"exec", "x"}
-# npm and npx options that take their value as the next word.
-VALUE_OPTS = {
-    "prefix", "workspace", "w", "C", "cache", "userconfig", "globalconfig", "registry",
-    "location", "loglevel", "tag", "omit", "include", "package", "p", "call", "c", "before",
-    "install-strategy", "script-shell",
-}
-WRAPPERS = {"env", "sudo", "command", "exec", "nohup", "time", "xargs"}
-SHELLS = {"sh", "bash", "zsh", "dash", "ash"}
-VERCEL_COMMANDS = ("installCommand", "buildCommand", "devCommand", "ignoreCommand")
-
-
-def is_npm_spec(word):
-    return word == "npm" or word.startswith("npm@")
-
-
-def split_options(args):
-    """(options as (key, value) pairs, positional words), stopping options at `--`."""
-    options, positional, j = [], [], 0
-    while j < len(args):
-        word = args[j]
-        if word == "--":
-            positional.extend(args[j + 1:])
-            break
-        if word.startswith("-") and word != "-":
-            name, eq, value = word.lstrip("-").partition("=")
-            if not eq and name in VALUE_OPTS and j + 1 < len(args):
-                options.append((name, args[j + 1]))
-                j += 2
-                continue
-            options.append((name, value if eq else "true"))
-            j += 1
-            continue
-        positional.append(word)
-        j += 1
-    return options, positional
-
-
-def option_problems(options, where):
-    problems = []
-    for name, value in options:
-        key = norm_key(name)
-        if is_forbidden(key):
-            problems.append(f"{where} passes --{name}, which lets install scripts run without a decision")
-        elif changes_registry(key) or (key == "registry" and value != REGISTRY):
-            problems.append(f"{where} passes --{name}, which changes where packages are fetched from")
-        elif key == "no-engine-strict" or (key == "engine-strict" and value.lower() in ("false", "0")):
-            problems.append(f"{where} passes --{name}, which lets an older npm install")
-    return problems
-
-
-def check_npx(args, where):
-    options, positional = split_options(args)
-    packages = [v for k, v in options if k in ("package", "p")] + positional[:1]
-    problems = option_problems(options, where)
-    if any(is_npm_spec(p) for p in packages):
-        problems.append(f"{where} fetches npm itself; bootstrap it from tools/npm")
-    return problems
-
-
-def check_npm(prog, args, in_bootstrap_dir, where):
-    options, positional = split_options(args)
-    problems = option_problems(options, where)
-    sub, rest = (positional[0], positional[1:]) if positional else (None, [])
-    if sub in EXEC_CMDS:
-        packages = [v for k, v in options if k in ("package", "p")] + rest[:1]
-        if any(is_npm_spec(p) for p in packages):
-            problems.append(f"{where} fetches npm itself; bootstrap it from tools/npm")
-    elif sub in INSTALL_CMDS:
-        if any(is_npm_spec(p) for p in rest):
-            problems.append(f"{where} fetches npm itself; bootstrap it from tools/npm")
-        elif not prog.endswith(BOOTSTRAP_BIN) and not in_bootstrap_dir:
-            problems.append(f"{where} installs dependencies with an npm other than {BOOTSTRAP_BIN}")
-    return problems
-
-
-def shell_commands(text):
-    """Simple commands in a shell string, as word lists; None marks a subshell's end."""
-    lexer = shlex.shlex(text, posix=True, punctuation_chars=True)
-    lexer.whitespace_split = True
-    commands, current, skip_next = [], [], False
-    for token in lexer:
-        if skip_next:
-            skip_next = False
-            continue
-        if token and set(token) <= set("();&|"):
-            if current:
-                commands.append(current)
-                current = []
-            if ")" in token:
-                commands.append(None)
-            continue
-        if token and set(token) <= set("<>"):
-            skip_next = True
-            continue
-        current.append(token)
-    if current:
-        commands.append(current)
-    return commands
-
-
-def analyze_words_list(commands, where, depth=0):
-    problems = []
-    in_bootstrap_dir = False
-    for words in commands:
-        if words is None:
-            in_bootstrap_dir = False
-            continue
-        i = 0
-        while i < len(words):
-            word = words[i]
-            assignment = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", word)
-            if assignment:
-                problem = env_problem(assignment.group(1), assignment.group(2), f"{where} sets")
-                if problem:
-                    problems.append(problem)
-                i += 1
-            elif os.path.basename(word) in WRAPPERS or (word.startswith("-") and i > 0):
-                i += 1
-            else:
-                break
-        if i >= len(words):
-            continue
-        prog, args = words[i], words[i + 1:]
-        base = os.path.basename(prog)
-        if base == "cd":
-            in_bootstrap_dir = bool(args) and args[0].rstrip("/").endswith("tools/npm")
-        elif base == "npm":
-            problems += check_npm(prog, args, in_bootstrap_dir, where)
-        elif base == "npx":
-            problems += check_npx(args, where)
-        elif base in ("corepack", "pnpm", "yarn") and any(is_npm_spec(a) for a in args):
-            problems.append(f"{where} fetches npm itself; bootstrap it from tools/npm")
-        elif base in SHELLS and "-c" in args and depth < 3:
-            script = args[args.index("-c") + 1] if args.index("-c") + 1 < len(args) else ""
-            problems += analyze_shell(script, where, depth + 1)
-    return problems
-
-
-def analyze_shell(text, where, depth=0):
-    try:
-        commands = shell_commands(text)
-    except ValueError as exc:
-        return [f"{where} could not be parsed as a shell command ({exc})"]
-    return analyze_words_list(commands, where, depth)
-
-
-def dockerfile_instructions(text):
-    """(line number, instruction, arguments) with continuation lines joined."""
-    lines = text.splitlines()
-    i = 0
-    while i < len(lines):
-        start, line = i + 1, lines[i]
-        while line.rstrip().endswith("\\") and i + 1 < len(lines):
-            i += 1
-            line = line.rstrip()[:-1] + " " + lines[i]
-        i += 1
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        instruction, _, rest = stripped.partition(" ")
-        yield start, instruction.upper(), rest.strip()
-
-
-def analyze_dockerfile(path, text):
-    problems = []
-    for line, instruction, rest in dockerfile_instructions(text):
-        where = f"{path}:{line}"
-        if instruction == "RUN":
-            while rest.startswith("--"):
-                rest = rest.split(None, 1)[1] if " " in rest else ""
-            if rest.startswith("["):
-                try:
-                    words = json.loads(rest)
-                except ValueError:
-                    problems.append(f"{where} has an exec-form RUN that is not valid JSON")
-                    continue
-                if isinstance(words, list) and all(isinstance(w, str) for w in words):
-                    problems += analyze_words_list([words], where)
-            else:
-                problems += analyze_shell(rest, where)
-        elif instruction in ("ENV", "ARG"):
-            try:
-                words = shlex.split(rest)
-            except ValueError:
-                words = rest.split()
-            pairs = []
-            if instruction == "ENV" and len(words) >= 2 and "=" not in words[0]:
-                pairs.append((words[0], " ".join(words[1:])))
-            else:
-                pairs += [w.partition("=")[::2] for w in words]
-            for name, value in pairs:
-                if name.lower().startswith("npm_config_"):
-                    problem = env_problem(name, value, f"{where} {instruction}")
-                    if problem or (instruction == "ARG" and not value):
-                        problems.append(problem or f"{where} ARG {name} lets the build set npm config from outside the repo")
-    return problems
-
-
-def analyze_vercel(path, text):
-    try:
-        data = json.loads(text)
-    except ValueError as exc:
-        return [f"{path} is not valid JSON ({exc})"]
-    problems = []
-    for key in VERCEL_COMMANDS:
-        if isinstance(data.get(key), str):
-            problems += analyze_shell(data[key], f"{path} {key}")
-    envs = [data.get("env"), (data.get("build") or {}).get("env") if isinstance(data.get("build"), dict) else None]
-    for env in envs:
-        if isinstance(env, dict):
-            for name, value in env.items():
-                problem = env_problem(name, value, f"{path} env")
-                if problem:
-                    problems.append(problem)
-    return problems
-
-
-def is_deploy_name(path):
-    name = os.path.basename(path).lower()
-    return (
-        name in ("dockerfile", "containerfile", "vercel.json")
-        or name.startswith(("dockerfile.", "containerfile."))
-        or name.endswith((".dockerfile", ".containerfile"))
-    )
-
-
 def cmd_deploy():
-    tracked = [line.strip() for line in sys.stdin if line.strip()]
-    files = [p for p in tracked if is_deploy_name(p)]
-    problems = []
-    railway = ".railway/railway.ts"
-    if railway in tracked and os.path.exists(railway):
-        for path in re.findall(r"dockerfilePath\s*:\s*['\"]([^'\"]+)['\"]", open(railway).read()):
-            if path not in tracked:
-                problems.append(f"{railway} builds from {path}, which is not a tracked file")
-            elif path not in files:
-                files.append(path)
-    for path in files:
-        try:
-            with open(path) as fh:
-                text = fh.read()
-        except OSError as exc:
-            problems.append(f"{path} could not be read ({exc})")
-            continue
-        if os.path.basename(path).lower() == "vercel.json":
-            problems += analyze_vercel(path, text)
-        else:
-            problems += analyze_dockerfile(path, text)
+    """The deploy-file rule lives in npm_policy_deploy.py; this is its entry point."""
+    import npm_policy_deploy
+
+    problems, checked = npm_policy_deploy.run(sys.stdin.read())
     for line in problems:
         print(line)
-    if not files:
+    if not checked:
         print("found no deploy file to check (no Dockerfile, Containerfile or vercel.json is tracked)")
         return 1
     return 1 if problems else 0
@@ -555,13 +304,14 @@ def cmd_bootstrap(directory, minimum):
             continue
         name, _, value = line.partition("=")
         key = norm_key(name)
-        if is_forbidden(key):
-            problems.append(f"{npmrc} sets {name.strip()}, which lets install scripts run without a decision")
-        elif key.endswith(":registry") or key == "replace-registry-host":
-            problems.append(f"{npmrc} sets {name.strip()}, which changes where packages are fetched from")
+        if key not in BOOTSTRAP_NPMRC:
+            problems.append(f"{npmrc} sets {name.strip()}; the bootstrap .npmrc may set only {', '.join(BOOTSTRAP_NPMRC)}")
+        elif value.strip() != BOOTSTRAP_NPMRC[key]:
+            problems.append(f"{npmrc} sets {key}={value.strip()}; it must be {BOOTSTRAP_NPMRC[key]}")
         committed[key] = value.strip()
-    if committed.get("registry") != REGISTRY:
-        problems.append(f"{npmrc} does not set registry={REGISTRY}")
+    for key, value in BOOTSTRAP_NPMRC.items():
+        if key not in committed:
+            problems.append(f"{npmrc} does not set {key}={value}")
     if problems:
         for line in problems:
             print(line)
