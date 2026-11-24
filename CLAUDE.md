@@ -115,7 +115,8 @@ When you install a new package:
   - a workspace whose `.npmrc` lacks one of those settings or that npm resolves it differently;
   - any `allow-scripts` or `dangerously-allow-all-scripts` setting in any spelling (`allow-scripts[]`, `allow_scripts`), committed, resolved, or exported as `npm_config_*`, and any scoped-registry or `replace-registry-host` line;
   - a lockfile entry not fetched from `registry.npmjs.org` with sha512 integrity (bundled entries trace to a registry parent);
-  - a deploy file that fetches npm by version, or a `tools/npm` pin below `engines.npm`;
+  - an npm or npx call in a deploy file (any Dockerfile or Containerfile, `vercel.json`, and the `dockerfilePath` in `.railway/railway.ts`) that fetches npm itself, installs with any npm but `tools/npm/node_modules/.bin/npm` outside a `cd tools/npm` bootstrap, or passes a policy-changing option, and any `npm_config_*` set through `ENV`, `ARG`, an inline assignment or `vercel.json` env that contradicts the policy; deploy commands are parsed word by word, not pattern-matched;
+  - a `tools/npm` pin below `engines.npm`;
   - an npm older than 12.
 
   Never add one of those lines to get past a refusal; record the decision instead. When an install lists skipped scripts, review each package, then from that workspace's directory (the command does not understand workspaces) run `npm install-scripts deny <pkg>`, or `npm install-scripts approve <pkg>` only for a script the package cannot work without; an approval stays pinned to the reviewed version, which is the command's default. A new workspace gets the same `engines.npm` and `.npmrc`.

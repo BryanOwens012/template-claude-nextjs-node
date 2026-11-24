@@ -17,8 +17,8 @@
 #     dangerously-allow-all-scripts line in any spelling (`allow-scripts[]`, `allow_scripts`),
 #     and npm must resolve both to empty/false in every workspace.
 #   - Every install script has a decision: `npm install-scripts ls` lists nothing undecided.
-#   - Deploys get npm from tools/npm, whose lockfile pins its version and integrity; no
-#     Dockerfile or vercel.json may fetch npm by version instead.
+#   - Deploys get npm from tools/npm, whose lockfile pins its version and integrity: every npm
+#     and npx call in a deploy file is parsed, and none may fetch npm or install with another.
 #
 # The environment: `npm run` exports the root's resolved config as npm_config_*, and npm reads
 # those ahead of a workspace's .npmrc. The check first fails on any such variable that
@@ -89,16 +89,15 @@ if ! pinned=$("${POLICY[@]}" bootstrap "$BOOTSTRAP_DIR" "$MIN_NPM"); then
 		report "$BOOTSTRAP_DIR" "$line"
 	done <<<"$pinned"
 fi
-# Deploy files: never fetch npm itself (by version, tag, range or bare name), and any that
-# installs dependencies must do it with the bootstrapped npm.
-while IFS= read -r file; do
-	if grep -qE '(^|[^[:alnum:]_.-])npm@[^[:space:]]|npm +(install|i|add) +(-g|--global) +(npm|npm@)|npx +(-y +|--yes +)?npm([[:space:]@]|$)' -- "$file" 2>/dev/null; then
-		report "$file" "fetches npm itself; bootstrap it from $BOOTSTRAP_DIR (its lockfile pins version and integrity)."
-	fi
-	if grep -qE 'npm +(ci|install|i)([[:space:]"]|$)' -- "$file" 2>/dev/null && ! grep -qF -- "$BOOTSTRAP_DIR/node_modules/.bin/npm" "$file"; then
-		report "$file" "installs dependencies without the bootstrapped npm ($BOOTSTRAP_DIR/node_modules/.bin/npm)."
-	fi
-done < <(git ls-files -- 'Dockerfile' '*Dockerfile' 'Dockerfile.*' '*/Dockerfile.*' 'vercel.json' '*vercel.json')
+# Deploy files: every npm and npx call in a Dockerfile, Containerfile, vercel.json, or the
+# dockerfilePath .railway/railway.ts names is parsed, not pattern-matched. None may fetch npm
+# itself, any install must use the bootstrapped npm, and no option, ENV/ARG line, inline
+# assignment or vercel.json env may contradict the policy.
+if ! deploy_problems=$(git ls-files | "${POLICY[@]}" deploy); then
+	while IFS= read -r line; do
+		report "deploy" "$line"
+	done <<<"$deploy_problems"
+fi
 # npm prefers npm-shrinkwrap.json over package-lock.json, and this check reads only the latter.
 while IFS= read -r file; do
 	report "$file" "npm-shrinkwrap.json is not allowed; package-lock.json is the lockfile this policy checks."
