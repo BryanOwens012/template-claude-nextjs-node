@@ -24,7 +24,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 
 - **Framework**: Next.js 16
 - **UI Library**: React 19
-- **Language**: TypeScript 6+
+- **Language**: TypeScript 7+ (native compiler)
 - **Styling**: Tailwind CSS v4 (CSS-first configuration via `@theme` in `globals.css`)
 - **UI Components**: Radix UI, shadcn/ui
 - **Data Fetching**: TanStack Query v5 (via tRPC)
@@ -487,7 +487,7 @@ This template includes automated code quality checks powered by **Biome**, **Pre
 **Pre-commit Hook** — Runs automatically before each commit:
 
 ```bash
-npm run typecheck    # build:api → typecheck:web → typecheck:railway
+npm run typecheck    # build:api → typecheck:web → typecheck:cron → typecheck:railway
 npx lint-staged      # Auto-format and lint only staged files (safe fixes only)
 ```
 

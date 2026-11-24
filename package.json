@@ -8,9 +8,10 @@
     "npm": ">=12.0.0"
   },
   "scripts": {
-    "typecheck": "npm run build:api && npm run typecheck:web && npm run typecheck:railway",
+    "typecheck": "npm run build:api && npm run typecheck:web && npm run typecheck:cron && npm run typecheck:railway",
     "typecheck:api": "cd apps/api && npx tsc --noEmit",
     "typecheck:web": "cd apps/web && npx tsc --noEmit",
+    "typecheck:cron": "cd apps/cron && npx tsc --noEmit",
     "typecheck:railway": "tsc --noEmit -p .railway",
     "build": "npm run build:api && npm run build:web",
     "build:api": "cd apps/api && npm run build",
@@ -59,6 +60,6 @@
     "prettier": "^3.10.1",
     "railway": "^3.17.0",
     "sql-formatter": "15.9.0",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   }
 }
