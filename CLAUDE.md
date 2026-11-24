@@ -13,7 +13,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 - **Frontend**:
   - Next.js 16+ (App Router, React Server Components)
   - React 19
-  - TypeScript 6+
+  - TypeScript 7+ (the native compiler, which has no JavaScript compiler API: type checking runs through the `tsc` CLI, which is how `next build` checks by default; never set `experimental.useTypeScriptCli: false`, and pick tooling that shells out to `tsc` rather than importing `typescript`)
   - Tailwind CSS v4 (CSS-first config: `@theme` in `globals.css`, no `tailwind.config.ts`; PostCSS plugin is `@tailwindcss/postcss`, autoprefixer not needed)
   - Radix UI, shadcn/ui
   - TanStack Query v5

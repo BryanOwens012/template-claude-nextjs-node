@@ -24,7 +24,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 
 - **Framework**: Next.js 16
 - **UI Library**: React 19
-- **Language**: TypeScript 6+
+- **Language**: TypeScript 7+ (native compiler)
 - **Styling**: Tailwind CSS v4 (CSS-first configuration via `@theme` in `globals.css`)
 - **UI Components**: Radix UI, shadcn/ui
 - **Data Fetching**: TanStack Query v5 (via tRPC)
