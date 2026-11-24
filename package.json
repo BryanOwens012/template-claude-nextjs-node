@@ -4,7 +4,7 @@
   "description": "Next.js + Node.js template monorepo with tRPC v11 + TanStack Query",
   "private": true,
   "engines": {
-    "node": ">=24.0.0"
+    "node": ">=26.0.0"
   },
   "scripts": {
     "typecheck": "npm run build:api && npm run typecheck:web && npm run typecheck:railway",
@@ -51,7 +51,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.8",
-    "@types/node": "^24.19.2",
+    "@types/node": "^26.6.6",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.1",
     "prettier": "^3.10.1",

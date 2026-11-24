@@ -19,7 +19,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
   - TanStack Query v5
 
 - **Backend**:
-  - Express 5 (Node.js 24+)
+  - Express 5 (Node.js 26+)
   - TypeScript with ESM modules ("type": "module")
   - tRPC v11 for end-to-end type-safe API procedures
   - Zod for runtime validation and type safety
@@ -34,7 +34,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 ### Development Philosophy
 
 - **Code Quality First**: Always test after changes, fix all TypeScript errors before committing
-- **Modern Syntax**: Use latest ES6+ and Node.js 24+ features
+- **Modern Syntax**: Use latest ES6+ and Node.js 26+ features
 - **AI-Assisted**: Leverage AI for rapid development while maintaining high standards
 
 ## Development Guidelines
@@ -109,6 +109,7 @@ When you install a new package:
 - Each service is independently deployable with its own dependencies
 - If you add a new service, create its own `package.json`, with `"engines": { "node": ">=<major>.0.0" }` matching `.nvmrc`
 - **`.nvmrc` holds the Node major.** Every `engines.node` and every Dockerfile `FROM node:` tag must state the same major; `npm run check:node-version` (in the gauntlet) fails on any that drift. Change the major everywhere in one commit.
+- **Dependency install scripts are blocked unless `allowScripts` says otherwise** (npm 11.20+, bundled with Node 26). Each workspace's `package.json` records a decision for every dependency with an install script; the current entries are denials, because nothing here needs them. When an install ends with a list of skipped scripts, review each package and record the decision with `npm install-scripts approve <pkg>` or `npm install-scripts deny <pkg>` in that workspace (the command does not understand workspaces). Approve only a script the package cannot work without, and confirm with `npm install-scripts ls` that nothing is left unreviewed.
 
 **Example workflow:**
 
@@ -238,7 +239,7 @@ apps/api/
 │   │   └── supabase.ts          # initSupabase/getSupabaseClient/isSupabaseAvailable
 │   └── types/
 │       └── index.ts             # Zod schemas + z.infer<> types (input + output)
-├── Dockerfile           # Docker build (node:24-alpine, used by Railway)
+├── Dockerfile           # Docker build (node:26-alpine, used by Railway)
 └── .env.example         # Environment variable template
 
 apps/shared/
@@ -633,7 +634,7 @@ The Railway environment is declared as Infrastructure as Code in `.railway/railw
 
 - `.railway/railway.ts` - The whole environment: the `API` service (`build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/api/Dockerfile' }`, `start`, `deploy.restartPolicyType`/`restartPolicyMaxRetries`), `redis('Redis')` wired into `REDIS_URL`, and the `Keep-Alive` function (`fn(...)` with `deploy.cronSchedule`, its script base64-encoded from `apps/cron/src/keep-alive.ts` into the start command). Every secret is `preserve()`; never write a value into this file
 - `.railway/tsconfig.json` + `npm run typecheck:railway` - Typechecks the file against the `railway` SDK. **This is the only check that catches an unknown key**: `railway config plan` forwards a misspelled key to Railway unchanged (verified: `dockerfilePathh` planned as a new setting), so run the typecheck before every plan
-- `apps/api/Dockerfile` - Build configuration (`node:24-alpine`, `npm ci` + `npm run build`); requires repo-root build context because it copies `apps/shared/` alongside `apps/api/`, so the service keeps `rootDirectory: '/'`
+- `apps/api/Dockerfile` - Build configuration (`node:26-alpine`, `npm ci` + `npm run build`); requires repo-root build context because it copies `apps/shared/` alongside `apps/api/`, so the service keeps `rootDirectory: '/'`
 - `apps/api/package.json` and `package-lock.json` - Node.js dependencies for this service
 
 **Rules for editing `.railway/railway.ts`:**
@@ -665,7 +666,7 @@ To add additional backend services:
 
 1. Create new service directory under `apps/` (e.g., `apps/worker/`)
 2. Add service-specific configuration files:
-   - `Dockerfile` - Build config (Node.js 24+; copy `apps/shared/` too if the service uses shared types)
+   - `Dockerfile` - Build config (Node.js 26+; copy `apps/shared/` too if the service uses shared types)
    - `package.json` and `package-lock.json` - Dependencies
    - `.env.example` - Environment template
 3. Declare it in `.railway/railway.ts` with the same `github(REPO, ...)` source, `build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/worker/Dockerfile' }`, `start`, `networking.privateNetworkEndpoint`, and its variables, then add it to the project's `resources`

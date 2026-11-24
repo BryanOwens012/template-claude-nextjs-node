@@ -52,7 +52,7 @@ const AboutPage = () => {
                 UI, shadcn/ui
               </li>
               <li>
-                • <strong>Backend:</strong> Express 5, Node.js 22+, TypeScript
+                • <strong>Backend:</strong> Express 5, Node.js 26+, TypeScript
               </li>
               <li>
                 • <strong>Database:</strong> Supabase (PostgreSQL)
