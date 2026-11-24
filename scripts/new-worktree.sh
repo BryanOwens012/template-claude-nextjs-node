@@ -69,7 +69,7 @@ target_abs=$(cd -- "$target" && pwd) || exit 1
 #
 # ROOT FIRST, and that order is load-bearing: the root install is the one that runs
 # `prepare: husky` and creates `.husky/_`, so until it finishes the worktree has no hooks.
-WORKSPACE_DIRS=(. apps/api apps/web apps/cron)
+WORKSPACE_DIRS=(. apps/api apps/web apps/cron tools/npm)
 
 for dir in "${WORKSPACE_DIRS[@]}"; do
 	if [ -f "$target_abs/$dir/package-lock.json" ]; then

@@ -19,7 +19,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
   - TanStack Query v5
 
 - **Backend**:
-  - Express 5 (Node.js 24+)
+  - Express 5 (Node.js 26+)
   - TypeScript with ESM modules ("type": "module")
   - tRPC v11 for end-to-end type-safe API procedures
   - Zod for runtime validation and type safety
@@ -34,7 +34,7 @@ This is a Next.js + Node.js template for rapidly spinning up full-stack applicat
 ### Development Philosophy
 
 - **Code Quality First**: Always test after changes, fix all TypeScript errors before committing
-- **Modern Syntax**: Use latest ES6+ and Node.js 24+ features
+- **Modern Syntax**: Use latest ES6+ and Node.js 26+ features
 - **AI-Assisted**: Leverage AI for rapid development while maintaining high standards
 
 ## Development Guidelines
@@ -107,8 +107,18 @@ When you install a new package:
 - Each service under `apps/` has its own `package.json` and `package-lock.json`
 - `apps/api/package.json` - Node.js dependencies for the API service
 - Each service is independently deployable with its own dependencies
-- If you add a new service, create its own `package.json`, with `"engines": { "node": ">=<major>.0.0" }` matching `.nvmrc`
+- If you add a new service, create its own `package.json`, with the same `engines.node` as the root `package.json`
 - **`.nvmrc` holds the Node major.** Every `engines.node` and every Dockerfile `FROM node:` tag must state the same major; `npm run check:node-version` (in the gauntlet) fails on any that drift. Change the major everywhere in one commit.
+- **npm 12 is required, and every dependency install script needs a decision in its workspace's `allowScripts`.** npm 12 skips an install script with no decision and lists it at the end of the install; older npm runs it. So every `package.json` declares `engines.npm` `>=12.0.0`, and every workspace's `.npmrc` sets `engine-strict=true` (an older npm refuses to install), `registry=https://registry.npmjs.org/`, and `allow-git`, `allow-remote`, `allow-file` and `allow-directory` to `none` (dependencies install only from the registry). The API Dockerfile and Vercel's `installCommand` get npm from `tools/npm`, whose lockfile pins its version and sha512 integrity; bump it there with `npm install npm@<version>`, never by writing `npm@<version>` into a deploy file. `npm run check:npm-policy` (in the gauntlet; parsing in `scripts/npm_policy.py`) fails on:
+  - an undecided script;
+  - a missing `engines.npm`;
+  - a workspace whose `.npmrc` lacks one of those settings or that npm resolves it differently;
+  - any `allow-scripts` or `dangerously-allow-all-scripts` setting in any spelling (`allow-scripts[]`, `allow_scripts`), committed, resolved, or exported as `npm_config_*`, and any scoped-registry or `replace-registry-host` line;
+  - a lockfile entry not fetched from `registry.npmjs.org` with sha512 integrity (bundled entries trace to a registry parent);
+  - a deploy file that fetches npm by version, or a `tools/npm` pin below `engines.npm`;
+  - an npm older than 12.
+
+  Never add one of those lines to get past a refusal; record the decision instead. When an install lists skipped scripts, review each package, then from that workspace's directory (the command does not understand workspaces) run `npm install-scripts deny <pkg>`, or `npm install-scripts approve <pkg>` only for a script the package cannot work without; an approval stays pinned to the reviewed version, which is the command's default. A new workspace gets the same `engines.npm` and `.npmrc`.
 
 **Example workflow:**
 
@@ -238,7 +248,7 @@ apps/api/
 │   │   └── supabase.ts          # initSupabase/getSupabaseClient/isSupabaseAvailable
 │   └── types/
 │       └── index.ts             # Zod schemas + z.infer<> types (input + output)
-├── Dockerfile           # Docker build (node:24-alpine, used by Railway)
+├── Dockerfile           # Docker build (node:26-alpine, used by Railway)
 └── .env.example         # Environment variable template
 
 apps/shared/
@@ -252,6 +262,8 @@ apps/shared/
 ```
 vercel.json            # Vercel deployment config for web app (simplified)
 .nvmrc                 # Node major (source of truth for engines.node and Dockerfile FROM node:)
+.npmrc                 # engine-strict=true, registry-only installs; every workspace (apps/*/.npmrc) carries the same file
+tools/npm/             # The npm Docker and Vercel install with: package.json pins it, the lockfile carries its sha512
 .railway/railway.ts    # Railway Infrastructure as Code: API (Dockerfile → apps/api/Dockerfile), Redis, Keep-Alive
 .railway/tsconfig.json # Typechecks railway.ts against the `railway` SDK (npm run typecheck:railway)
 .claude/gauntlet.json  # Declared pre-merge quality gate, cheapest check first (check:hooks)
@@ -261,8 +273,9 @@ scripts/
 ├── install-changed-lockfiles.sh  # Shared by the four sync hooks: npm install per changed lockfile
 ├── check-hooks-installed.sh      # npm run check:hooks — fails when git would run no hooks here
 ├── check-node-version-ssot.sh    # npm run check:node-version — .nvmrc is the Node major; every engines.node and FROM node: must agree
+├── check-npm-policy.sh           # npm run check:npm-policy — npm 12, registry-only installs, every install script decided (parsing: npm_policy.py)
 ├── gen-supabase-types.sh         # Regenerates apps/shared/supabase/types.ts; the only sanctioned route
-├── new-worktree.sh               # npm run worktree:new — worktree + npm ci + api build + hook check
+├── new-worktree.sh               # npm run worktree:new — worktree + npm ci (workspaces and tools/npm) + api build + hook check
 ├── run-shell-tests.sh            # npm run test:scripts:sh — finds and runs every *.test.sh, bounded
 ├── test_services.sh              # bash scripts/test_services.sh [API_URL] — curl probes of /health and the tRPC health/redis/supabase procedures
 └── tests/*.test.sh               # bash suites for the scripts above, sandboxed, npm stubbed
@@ -633,7 +646,7 @@ The Railway environment is declared as Infrastructure as Code in `.railway/railw
 
 - `.railway/railway.ts` - The whole environment: the `API` service (`build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/api/Dockerfile' }`, `start`, `deploy.restartPolicyType`/`restartPolicyMaxRetries`), `redis('Redis')` wired into `REDIS_URL`, and the `Keep-Alive` function (`fn(...)` with `deploy.cronSchedule`, its script base64-encoded from `apps/cron/src/keep-alive.ts` into the start command). Every secret is `preserve()`; never write a value into this file
 - `.railway/tsconfig.json` + `npm run typecheck:railway` - Typechecks the file against the `railway` SDK. **This is the only check that catches an unknown key**: `railway config plan` forwards a misspelled key to Railway unchanged (verified: `dockerfilePathh` planned as a new setting), so run the typecheck before every plan
-- `apps/api/Dockerfile` - Build configuration (`node:24-alpine`, `npm ci` + `npm run build`); requires repo-root build context because it copies `apps/shared/` alongside `apps/api/`, so the service keeps `rootDirectory: '/'`
+- `apps/api/Dockerfile` - Build configuration (`node:26-alpine`, `npm ci` + `npm run build`); requires repo-root build context because it copies `apps/shared/` alongside `apps/api/`, so the service keeps `rootDirectory: '/'`
 - `apps/api/package.json` and `package-lock.json` - Node.js dependencies for this service
 
 **Rules for editing `.railway/railway.ts`:**
@@ -665,7 +678,7 @@ To add additional backend services:
 
 1. Create new service directory under `apps/` (e.g., `apps/worker/`)
 2. Add service-specific configuration files:
-   - `Dockerfile` - Build config (Node.js 24+; copy `apps/shared/` too if the service uses shared types)
+   - `Dockerfile` - Build config (Node.js 26+; copy `apps/shared/` too if the service uses shared types)
    - `package.json` and `package-lock.json` - Dependencies
    - `.env.example` - Environment template
 3. Declare it in `.railway/railway.ts` with the same `github(REPO, ...)` source, `build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/worker/Dockerfile' }`, `start`, `networking.privateNetworkEndpoint`, and its variables, then add it to the project's `resources`

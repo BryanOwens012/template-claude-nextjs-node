@@ -1,0 +1,11 @@
+{
+  "name": "npm-bootstrap",
+  "private": true,
+  "engines": {
+    "node": ">=26.0.0"
+  },
+  "description": "Pins the npm that Docker and Vercel install with. Its lockfile carries the version and sha512 integrity; bump both together with `npm install npm@<version>` here.",
+  "dependencies": {
+    "npm": "12.2.2"
+  }
+}

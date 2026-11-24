@@ -6,7 +6,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 
 - **Authentication**: Supabase Auth with email+password, Google OAuth, and Microsoft OAuth (all free)
 - **Modern Frontend**: Next.js 16 with React 19, TypeScript, Tailwind CSS v4, Radix UI, shadcn/ui
-- **Robust Backend**: Express 5 + tRPC v11 with Node.js 24+, TypeScript, end-to-end type safety
+- **Robust Backend**: Express 5 + tRPC v11 with Node.js 26+, TypeScript, end-to-end type safety
 - **End-to-End Type Safety**: tRPC v11 + TanStack Query v5 for type-safe API calls with automatic caching
 - **Supabase Integration**: PostgreSQL database with built-in auth, realtime, and storage
 - **Redis Integration**: Built-in caching with Railway-optimized connection settings
@@ -33,7 +33,7 @@ A template for rapidly spinning up full-stack applications with Next.js frontend
 ### Backend
 
 - **Framework**: Express 5
-- **Runtime**: Node.js 24+
+- **Runtime**: Node.js 26+
 - **Language**: TypeScript with ESM modules
 - **API Layer**: tRPC v11 (type-safe procedures) + Zod (schemas + inferred types)
 - **Database**: Supabase (PostgreSQL with auth, realtime, storage)
@@ -105,7 +105,7 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 │   │   │   └── types/                # Zod schemas & types
 │   │   ├── package.json
 │   │   ├── tsconfig.json
-│   │   ├── Dockerfile                # Docker build (node:24-alpine, used by Railway)
+│   │   ├── Dockerfile                # Docker build (node:26-alpine, used by Railway)
 │   │   └── .env.example
 │   ├── cron/                 # Scheduled jobs (e.g. Supabase keep-alive ping)
 │   │   ├── src/
@@ -119,6 +119,8 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 │   ├── install-changed-lockfiles.sh  # npm install per changed lockfile (shared by the sync hooks)
 │   ├── check-hooks-installed.sh      # npm run check:hooks
 │   ├── check-node-version-ssot.sh    # npm run check:node-version
+│   ├── check-npm-policy.sh           # npm run check:npm-policy
+│   ├── npm_policy.py                 # Parsing half of check-npm-policy.sh
 │   ├── gen-supabase-types.sh         # Regenerate Supabase types (see Database Migrations)
 │   ├── new-worktree.sh               # npm run worktree:new
 │   ├── run-shell-tests.sh            # npm run test:scripts:sh
@@ -127,6 +129,8 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 ├── .husky/                   # pre-commit + lockfile-sync hooks (post-merge/rewrite/checkout/commit)
 ├── .claude/gauntlet.json     # Declared pre-merge quality gate
 ├── .nvmrc                    # Node major; engines.node and Dockerfile tags must match
+├── .npmrc                    # engine-strict=true, registry-only installs (each workspace has the same file)
+├── tools/npm/                # The npm Docker and Vercel install with, pinned with its sha512 in the lockfile
 ├── .mcp.json                 # MCP servers for AI agents (Vercel, Railway, Supabase read-only)
 ├── AGENTS.md                 # AI agent entry point (redirects to CLAUDE.md)
 ├── CLAUDE.md                 # Comprehensive development guidelines and best practices
@@ -141,7 +145,8 @@ It's still plain HTTP + JSON underneath (queries are GETs, mutations are POSTs t
 
 ### Prerequisites
 
-- Node.js 24.0.0 or higher
+- Node.js 26 (`nvm install` reads `.nvmrc`) and npm 12 or later (`npm install -g npm@12`); with an older npm, installs fail with `EBADENGINE`
+- An install that ends by listing skipped install scripts means a dependency's script has no decision yet; `npm run check:npm-policy` names it and the command that records one
 - npm or yarn
 - [Supabase account](https://supabase.com) (free tier available)
 
@@ -367,7 +372,7 @@ The Railway project is declared as [Infrastructure as Code](https://docs.railway
 
 - `.railway/railway.ts` - The Railway environment (services, database, function, variables). `npm run typecheck:railway` checks it against the SDK's types, which catches a misspelled key that Railway would otherwise accept silently
 - `.railway/README.md` - Plan/apply workflow and the rules for editing the file
-- `apps/api/Dockerfile` - Build configuration (`node:24-alpine`, `npm ci` + `npm run build`); the build context stays at the repo root so it can copy `apps/shared/` alongside `apps/api/`
+- `apps/api/Dockerfile` - Build configuration (`node:26-alpine`, `npm ci` + `npm run build`); the build context stays at the repo root so it can copy `apps/shared/` alongside `apps/api/`
 - `apps/api/package.json` / `package-lock.json` - Node.js dependencies for this service
 
 The API also exposes a `/health` endpoint (tests both Redis and Supabase) that can be used as a Railway health check — add `healthcheck: '/health'` to the service in `.railway/railway.ts` to enable it.
@@ -385,7 +390,7 @@ To add additional backend services:
 
 1. Create new service directory under `apps/` (e.g., `apps/worker/`)
 2. Add service-specific configuration files:
-   - `Dockerfile` - Build configuration (Node.js 24; copy `apps/shared/` too if the service uses shared types)
+   - `Dockerfile` - Build configuration (Node.js 26; copy `apps/shared/` too if the service uses shared types)
    - `package.json` / `package-lock.json` - Node.js dependencies
    - `.env.example` - Environment variable template
 3. Declare the service in `.railway/railway.ts` with the same repo source, `build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/worker/Dockerfile' }`, its start command, and its variables, then add it to the project's `resources`
@@ -514,6 +519,7 @@ npm run lint:check
 # Hooks, worktrees, and shell tests
 npm run check:hooks                              # fail if git would run no hooks here
 npm run check:node-version                       # fail if any engines.node / FROM node: disagrees with .nvmrc
+npm run check:npm-policy                         # fail on npm < 12, a non-registry source, or an undecided install script
 npm run worktree:new -- ../repo.feat bryan/feat  # provisioned worktree, hooks verified
 npm run test:scripts:sh                          # every scripts/**/*.test.sh, discovered by find
 npm run test:api                                 # apps/api unit tests
@@ -522,6 +528,7 @@ npm run test:api                                 # apps/api unit tests
 .editorconfig             # Shell script formatting standards
 biome.json               # JS/TS formatting and linting rules
 .nvmrc                   # Node major; engines.node and Dockerfile FROM node: must agree
+.npmrc                   # engine-strict=true; registry-only installs (allow-git/remote/file/directory=none)
 .prettierrc              # Markdown formatter configuration
 .sql-formatter.json      # PostgreSQL SQL formatting
 .husky/                  # pre-commit + the four lockfile-sync hooks
