@@ -8,7 +8,8 @@
 #                         the deploy; it also emits the declarations apps/web resolves
 #                         `@api/*` against
 #   2. typecheck:web      the Next.js app against those declarations
-#   3. typecheck:railway  .railway/railway.ts against the railway SDK types
+#   3. typecheck:cron     apps/cron (the Keep-Alive function, shipped as source)
+#   4. typecheck:railway  .railway/railway.ts against the railway SDK types
 # then lint-staged runs safe formatters/linters on staged files and re-stages them.
 #
 # Never add an --unsafe autofix flag here. Fix Biome's unsafe findings by hand in the source.

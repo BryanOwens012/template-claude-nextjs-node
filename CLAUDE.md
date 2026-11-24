@@ -609,8 +609,8 @@ curl -X POST http://localhost:8000/trpc/llm.traceExample \
 - ❌ Don't ignore TypeScript errors or use `any` without justification
 - ❌ Don't import `typescript` in code or tooling: TypeScript 7 has no JavaScript compiler API, so type checking runs through the `tsc` CLI. Pick tools that shell out to `tsc`
 - ❌ Don't set `experimental.useTypeScriptCli: false` in `next.config.ts`: `next build` type-checks through `tsc` by default, and with the option off it exits under TypeScript 7
-- ❌ Don't expect Next's editor plugin (`plugins: [{ "name": "next" }]` in `apps/web/tsconfig.json`) to run under TypeScript 7, which ships no `tsserver`; keep the entry, since `next build` re-adds it
-- ❌ Don't add a workspace without adding its `tsc --noEmit` to the root `typecheck`; `scripts/tests/typecheck-coverage.test.sh` fails when a tsconfig stops covering its sentinel files
+- ❌ Don't expect Next's editor plugin (`plugins: [{ "name": "next" }]` in `apps/web/tsconfig.json`) to load under TypeScript 7, which ships no `tsserver` plugin host; keep the entry, since `next build` re-adds it
+- ❌ Don't add a workspace without a `typecheck:<name>` script (`cd apps/<name> && npx tsc --noEmit`) in the root `typecheck` and an entry in the scope table of `scripts/tests/typecheck-coverage.test.sh`, which fails on an `apps/*/tsconfig.json` missing from either, on a scope script that no longer runs `tsc --noEmit`, and on a tsconfig that stops covering its sentinel files
 - ❌ Don't forget to handle loading and error states
 - ❌ Don't forget cleanup in useEffect hooks
 - ❌ Don't mutate state directly (use immutable updates)

@@ -487,7 +487,7 @@ This template includes automated code quality checks powered by **Biome**, **Pre
 **Pre-commit Hook** — Runs automatically before each commit:
 
 ```bash
-npm run typecheck    # build:api → typecheck:web → typecheck:railway
+npm run typecheck    # build:api → typecheck:web → typecheck:cron → typecheck:railway
 npx lint-staged      # Auto-format and lint only staged files (safe fixes only)
 ```
 
